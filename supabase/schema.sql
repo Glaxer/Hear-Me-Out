@@ -52,6 +52,7 @@ create table public.templates (
 create index templates_created_at_idx on public.templates (created_at desc);
 create index templates_list_count_idx on public.templates (list_count desc);
 create index templates_category_idx on public.templates (category);
+create index templates_owner_idx on public.templates (owner_id);
 
 -- ---------------------------------------------------------------------
 -- Template items: the things inside a template (a dish, a game, ...)
@@ -92,6 +93,7 @@ create index tier_lists_owner_idx on public.tier_lists (owner_id, updated_at des
 create function public.touch_updated_at()
 returns trigger
 language plpgsql
+set search_path = ''
 as $$
 begin
   new.updated_at = now();
@@ -126,6 +128,11 @@ $$;
 create trigger tier_lists_count
   after insert or update of is_public or delete on public.tier_lists
   for each row execute function public.refresh_template_list_count();
+
+-- Trigger-only functions must not be callable through the API
+revoke execute on function public.handle_new_user() from public, anon, authenticated;
+revoke execute on function public.refresh_template_list_count() from public, anon, authenticated;
+revoke execute on function public.touch_updated_at() from public, anon, authenticated;
 
 -- ---------------------------------------------------------------------
 -- Row Level Security
