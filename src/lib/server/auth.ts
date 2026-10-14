@@ -109,3 +109,10 @@ export function suggestUsername(user: User): string {
 	}
 	return "";
 }
+
+/**
+ * Where to send someone after they confirm their email (e.g. back to a ranking waiting to be
+ * saved). Kept in a cookie rather than in the email link, because Supabase falls back to the
+ * bare Site URL when a link's return address has extra parameters it doesn't recognise.
+ */
+export const AFTER_CONFIRM_COOKIE = "hmo_after_confirm";

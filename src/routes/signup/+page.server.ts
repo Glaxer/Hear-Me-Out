@@ -1,5 +1,9 @@
 import { fail, redirect } from "@sveltejs/kit";
-import { enabledOAuthProviders, safeRedirect } from "$lib/server/auth";
+import {
+	AFTER_CONFIRM_COOKIE,
+	enabledOAuthProviders,
+	safeRedirect
+} from "$lib/server/auth";
 import { isPwnedPassword, PWNED_MESSAGE } from "$lib/server/pwned";
 import {
 	MIN_PASSWORD_LENGTH,
@@ -15,7 +19,7 @@ export const load: PageServerLoad = async ({ locals, fetch, url }) => {
 };
 
 export const actions: Actions = {
-	default: async ({ request, locals, url }) => {
+	default: async ({ request, locals, url, cookies }) => {
 		const form = await request.formData();
 		const email = String(form.get("email") ?? "").trim();
 		const username = String(form.get("username") ?? "").trim();
@@ -49,16 +53,26 @@ export const actions: Actions = {
 			return fail(400, { ...values, error: "That username is already taken." });
 		}
 
+		// After confirming, go back to what they were doing (e.g. a ranking waiting to be saved)
+		cookies.set(
+			AFTER_CONFIRM_COOKIE,
+			safeRedirect(url.searchParams.get("redirectTo")),
+			{
+				path: "/",
+				maxAge: 60 * 60 * 24,
+				httpOnly: true,
+				sameSite: "lax",
+				secure: url.protocol === "https:"
+			}
+		);
+
 		const { data, error } = await locals.supabase.auth.signUp({
 			email,
 			password,
 			options: {
 				captchaToken,
 				data: { username },
-				// After confirming, go back to what they were doing (e.g. a ranking waiting to be saved)
-				emailRedirectTo: `${url.origin}/auth/confirm?next=${encodeURIComponent(
-					safeRedirect(url.searchParams.get("redirectTo"))
-				)}`
+				emailRedirectTo: `${url.origin}/auth/confirm`
 			}
 		});
 

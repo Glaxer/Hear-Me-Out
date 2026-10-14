@@ -1,6 +1,10 @@
 import { redirect, type RequestHandler } from "@sveltejs/kit";
 import type { EmailOtpType } from "@supabase/supabase-js";
-import { needsUsername, safeRedirect } from "$lib/server/auth";
+import {
+	AFTER_CONFIRM_COOKIE,
+	needsUsername,
+	safeRedirect
+} from "$lib/server/auth";
 
 /**
  * Where people land after logging in elsewhere:
@@ -13,7 +17,7 @@ import { needsUsername, safeRedirect } from "$lib/server/auth";
  *   - Supabase's default email link: only logs in if it's opened in the same browser that signed
  *     up. On another device the email is still confirmed, so we send them to log in.
  */
-export const GET: RequestHandler = async ({ url, locals }) => {
+export const GET: RequestHandler = async ({ url, locals, cookies }) => {
 	const code = url.searchParams.get("code");
 	const tokenHash = url.searchParams.get("token_hash");
 	const type = (url.searchParams.get("type") ?? "email") as EmailOtpType;
@@ -34,7 +38,10 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		if (type === "recovery")
 			redirect(303, error ? "/forgot-password?expired=1" : "/reset-password");
 		if (!error) {
-			const to = next || "/me";
+			// Set when they signed up (same browser); otherwise their own page
+			const saved = safeRedirect(cookies.get(AFTER_CONFIRM_COOKIE), "");
+			cookies.delete(AFTER_CONFIRM_COOKIE, { path: "/" });
+			const to = next || saved || "/me";
 			redirect(303, `${to}${to.includes("?") ? "&" : "?"}toast=welcome`);
 		}
 		redirect(303, "/login?confirmError=1");
