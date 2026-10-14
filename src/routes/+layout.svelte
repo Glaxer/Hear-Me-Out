@@ -83,13 +83,14 @@
 
 <footer class="site-footer container">
   <p>Every great ranking starts with “hear me out…”</p>
-  {#if env.PUBLIC_SOURCE_URL}
-    <p>
-      <a href={env.PUBLIC_SOURCE_URL} rel="noopener">Source code</a> · Free
+  <p>
+    <a href="/privacy">Privacy</a>
+    {#if env.PUBLIC_SOURCE_URL}
+      · <a href={env.PUBLIC_SOURCE_URL} rel="noopener">Source code</a> · Free
       software under the
-      <a href="https://www.gnu.org/licenses/agpl-3.0.html" rel="noopener">
-        AGPL-3.0
-      </a>
-    </p>
-  {/if}
+      <a href="https://www.gnu.org/licenses/agpl-3.0.html" rel="noopener"
+        >AGPL-3.0</a
+      >
+    {/if}
+  </p>
 </footer>

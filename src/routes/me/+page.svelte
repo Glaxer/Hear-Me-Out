@@ -26,9 +26,12 @@
       {#if data.email}<p class="muted">{data.email}</p>{/if}
     </div>
   </div>
-  <form method="POST" action="/logout">
-    <button class="btn btn-secondary btn-small" type="submit">Log out</button>
-  </form>
+  <div class="account-actions">
+    <a class="btn btn-secondary btn-small" href="/me/settings">Settings</a>
+    <form method="POST" action="/logout">
+      <button class="btn btn-secondary btn-small" type="submit">Log out</button>
+    </form>
+  </div>
 </div>
 
 <section class="section">
@@ -88,7 +91,12 @@
     gap: 16px;
     flex-wrap: wrap;
   }
-  .account form {
+  .account-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .account-actions form {
     margin: 0;
   }
   .who {
