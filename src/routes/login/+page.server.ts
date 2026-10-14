@@ -36,7 +36,7 @@ export const actions: Actions = {
 				error.code === "captcha_failed"
 					? "We couldn’t verify that you’re human. Please try again."
 					: error.code === "email_not_confirmed"
-						? "Please confirm your email first — check your inbox."
+						? "Please confirm your email first. Check your inbox and spam folder for the link."
 						: "Wrong email or password.";
 			return fail(400, { email, error: message });
 		}

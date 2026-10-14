@@ -38,6 +38,10 @@
 			Almost there! We sent a confirmation link to <strong>{form.email}</strong
 			>. Click it to finish signing up. You’ll be logged in straight away.
 		</p>
+		<p class="muted">
+			Can’t find it? It can take a minute to arrive, so check your spam folder
+			too.
+		</p>
 	{:else}
 		<OAuthButtons providers={data.providers} {redirectTo} />
 		<form

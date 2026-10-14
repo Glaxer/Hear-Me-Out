@@ -55,7 +55,10 @@ export const actions: Actions = {
 			options: {
 				captchaToken,
 				data: { username },
-				emailRedirectTo: `${url.origin}/auth/confirm`
+				// After confirming, go back to what they were doing (e.g. a ranking waiting to be saved)
+				emailRedirectTo: `${url.origin}/auth/confirm?next=${encodeURIComponent(
+					safeRedirect(url.searchParams.get("redirectTo"))
+				)}`
 			}
 		});
 

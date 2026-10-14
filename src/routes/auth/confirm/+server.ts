@@ -33,7 +33,10 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		// Password reset email: they're logged in now, so let them choose a new password
 		if (type === "recovery")
 			redirect(303, error ? "/forgot-password?expired=1" : "/reset-password");
-		if (!error) redirect(303, "/me?toast=welcome");
+		if (!error) {
+			const to = next || "/me";
+			redirect(303, `${to}${to.includes("?") ? "&" : "?"}toast=welcome`);
+		}
 		redirect(303, "/login?confirmError=1");
 	}
 
