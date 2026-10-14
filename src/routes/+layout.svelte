@@ -46,7 +46,7 @@
         <span style="background: var(--tier-a)"></span>
         <span style="background: var(--tier-b)"></span>
       </span>
-      Hear Me Out
+      <span class="logo-text">Hear Me Out</span>
     </a>
 
     <nav class="main-nav" aria-label="Main">

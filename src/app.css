@@ -157,6 +157,10 @@ img {
 .main-nav a {
   text-decoration: none;
 }
+/* Bigger tap areas for the menu links without changing how they look */
+.main-nav a:not(.btn):not(.avatar) {
+  padding: 10px 2px;
+}
 .main-nav a:hover {
   text-decoration: underline;
 }
@@ -441,5 +445,19 @@ textarea {
 @media (prefers-reduced-motion: reduce) {
   .hmo-tooltip {
     animation: none;
+  }
+}
+
+/* ---------- Phones ---------- */
+/* Logo mark only, so the logo and menu fit on one row */
+@media (max-width: 480px) {
+  .logo-text {
+    display: none;
+  }
+  .logo {
+    padding: 10px 6px 10px 0;
+  }
+  .main-nav {
+    gap: 14px;
   }
 }
