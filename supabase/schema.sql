@@ -9,21 +9,25 @@
 create table public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   username text not null unique check (char_length(username) between 3 and 30),
+  -- true for Google/Discord sign-ups until they pick a username on /welcome
+  needs_username boolean not null default false,
   created_at timestamptz not null default now()
 );
 
 -- Create a profile automatically when someone signs up.
--- The username is passed in the sign-up call as user metadata.
+-- The username is passed in the sign-up call as user metadata. Google/Discord sign-ups
+-- don't have one, so they get a placeholder and pick a real one on /welcome.
 create function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer set search_path = ''
 as $$
 begin
-  insert into public.profiles (id, username)
+  insert into public.profiles (id, username, needs_username)
   values (
     new.id,
-    coalesce(new.raw_user_meta_data ->> 'username', 'user_' || substr(new.id::text, 1, 8))
+    coalesce(new.raw_user_meta_data ->> 'username', 'user_' || substr(new.id::text, 1, 8)),
+    (new.raw_user_meta_data ->> 'username') is null
   );
   return new;
 end;
