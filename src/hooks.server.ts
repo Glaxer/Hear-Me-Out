@@ -61,7 +61,7 @@ const authCallback: Handle = async ({ event, resolve }) => {
 const PROTECTED = ['/templates/new', '/me', '/welcome'];
 const PROTECTED_PATTERNS = [
 	/^\/lists\/?$/, // your own lists (single lists stay shareable)
-	/^\/templates\/[^/]+\/(rank|edit)$/,
+	/^\/templates\/[^/]+\/edit$/, // (ranking works without an account; saving asks to log in)
 	/^\/lists\/[^/]+\/edit$/
 ];
 

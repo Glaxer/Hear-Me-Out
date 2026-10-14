@@ -28,9 +28,8 @@
 	} = $props();
 
 	const byId = $derived(new Map(items.map((i) => [i.id, i])));
-	const rankHref = $derived(
-		loggedIn ? `/templates/${templateId}/rank` : `/login?redirectTo=${encodeURIComponent(`/templates/${templateId}/rank`)}`
-	);
+	// Anyone can rank; saving it (needed to see the verdict) asks people to log in
+	const rankHref = $derived(`/templates/${templateId}/rank`);
 	const needed = $derived(Math.max(0, minRankings - rankingCount));
 	const people = (n: number) => `${n} ${n === 1 ? 'ranking' : 'rankings'}`;
 
@@ -93,7 +92,7 @@
 						until then, so it can’t sway your picks.
 					{/if}
 				</p>
-				<a class="btn" href={rankHref}>{loggedIn ? 'Rank it to see the verdict' : 'Log in to rank it'}</a>
+				<a class="btn" href={rankHref}>Rank it to see the verdict</a>
 			</div>
 		</div>
 	{:else if status === 'waiting'}

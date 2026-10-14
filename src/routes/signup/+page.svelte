@@ -2,18 +2,28 @@
 	import { enhance } from '$app/forms';
 	import OAuthButtons from '$lib/components/OAuthButtons.svelte';
 	import Turnstile, { captchaEnabled } from '$lib/components/Turnstile.svelte';
+	import { page } from '$app/state';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 	let submitting = $state(false);
 	let captchaToken = $state<string | null>(null);
 	let turnstile = $state<Turnstile>();
+
+	// Where to go after signing up, e.g. back to a ranking that's waiting to be saved
+	const redirectTo = $derived(page.url.searchParams.get('redirectTo'));
+	const action = $derived(redirectTo ? `?redirectTo=${encodeURIComponent(redirectTo)}` : '');
 </script>
 
 <svelte:head><title>Sign up · Hear Me Out</title></svelte:head>
 
 <div class="auth">
 	<h1>Create an account</h1>
+	{#if redirectTo?.includes('/rank')}
+		<p class="muted">Sign up to save your ranking. Don’t worry, it’s kept while you do.</p>
+	{:else if redirectTo}
+		<p class="muted">Sign up to continue.</p>
+	{/if}
 
 	{#if form?.checkEmail}
 		<p class="form-success">
@@ -21,10 +31,11 @@
 			finish signing up. You’ll be logged in straight away.
 		</p>
 	{:else}
-		<OAuthButtons providers={data.providers} />
+		<OAuthButtons providers={data.providers} {redirectTo} />
 		<form
 			class="form"
 			method="POST"
+			{action}
 			use:enhance={() => {
 				submitting = true;
 				return async ({ update }) => {
@@ -86,7 +97,7 @@
 				By signing up (also with Google or Discord) you agree to us storing your email, username and what you create, as described in
 				the <a href="/privacy">privacy page</a>.
 			</p>
-			<p class="muted">Already have an account? <a href="/login">Log in</a></p>
+			<p class="muted">Already have an account? <a href="/login{action}">Log in</a></p>
 		</form>
 	{/if}
 </div>

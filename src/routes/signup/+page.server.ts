@@ -1,10 +1,10 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { enabledOAuthProviders } from '$lib/server/auth';
+import { enabledOAuthProviders, safeRedirect } from '$lib/server/auth';
 import { MIN_PASSWORD_LENGTH, USERNAME_HINT, USERNAME_PATTERN } from '$lib/validation';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ locals, fetch }) => {
-	if (locals.user) redirect(303, '/me');
+export const load: PageServerLoad = async ({ locals, fetch, url }) => {
+	if (locals.user) redirect(303, safeRedirect(url.searchParams.get('redirectTo')));
 	return { providers: await enabledOAuthProviders(fetch) };
 };
 
@@ -53,7 +53,7 @@ export const actions: Actions = {
 		}
 
 		// If email confirmation is turned off in Supabase, the user is signed in right away.
-		if (data.session) redirect(303, '/me');
+		if (data.session) redirect(303, safeRedirect(url.searchParams.get('redirectTo')));
 
 		return { ...values, checkEmail: true };
 	}

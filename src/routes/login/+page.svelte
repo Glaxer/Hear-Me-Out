@@ -18,7 +18,11 @@
 
 <div class="auth">
 	<h1>Log in</h1>
-	{#if redirectTo}<p class="muted">Log in to continue.</p>{/if}
+	{#if redirectTo?.includes('/rank')}
+		<p class="muted">Log in to save your ranking. Don’t worry, it’s kept while you do.</p>
+	{:else if redirectTo}
+		<p class="muted">Log in to continue.</p>
+	{/if}
 	{#if page.url.searchParams.has('confirmError')}
 		<p class="form-error">That confirmation link didn’t work or has expired. Try logging in, or sign up again.</p>
 	{/if}
@@ -65,7 +69,7 @@
 		<button class="btn" type="submit" disabled={submitting || (captchaEnabled && !captchaToken)}>
 			{submitting ? 'Logging in…' : 'Log in'}
 		</button>
-		<p class="muted">New here? <a href="/signup">Create an account</a></p>
+		<p class="muted">New here? <a href="/signup{action}">Create an account</a></p>
 	</form>
 </div>
 

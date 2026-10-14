@@ -15,12 +15,13 @@
 	<div>
 		<h1>Rank it. Share it.<br />See how everyone else ranked it.</h1>
 		<p class="lead muted">
-			Make a tier list in a minute, send the link to friends or coworkers, and compare everyone’s
-			rankings on one page.
+			Make a tier list in a minute, no account needed. Or make a template, send the link to friends
+			or coworkers, and compare everyone’s rankings on one page.
 		</p>
 		<div class="row">
-			<a class="btn" href={data.user ? '/templates/new' : '/signup'}>Create a template</a>
+			<a class="btn" href="/quick">Make a quick tier list</a>
 			<a class="btn btn-secondary" href="/templates">Browse templates</a>
+			<a class="btn btn-secondary" href={data.user ? '/templates/new' : '/signup'}>Create a template</a>
 		</div>
 	</div>
 	<div class="hero-art" aria-hidden="true">
