@@ -1,4 +1,4 @@
-export type ToastKind = 'success' | 'info' | 'error';
+export type ToastKind = "success" | "info" | "error";
 
 export interface Toast {
 	id: number;
@@ -17,7 +17,11 @@ export function dismissToast(id: number) {
 }
 
 /** Shows a short message in the corner of the screen. */
-export function toast(message: string, kind: ToastKind = 'success', durationMs = 5000) {
+export function toast(
+	message: string,
+	kind: ToastKind = "success",
+	durationMs = 5000
+) {
 	const id = nextId++;
 	toasts.push({ id, message, kind });
 	setTimeout(() => dismissToast(id), durationMs);
@@ -27,19 +31,39 @@ export function toast(message: string, kind: ToastKind = 'success', durationMs =
  * Messages that a server redirect can trigger with `?toast=<key>`,
  * e.g. redirect(303, '/me?toast=welcome').
  */
-export const REDIRECT_TOASTS: Record<string, { message: string; kind: ToastKind; durationMs?: number }> = {
-	welcome: { message: 'Your email is confirmed and you’re logged in. Welcome to Hear Me Out!', kind: 'success' },
-	confirmed: { message: 'Your email is confirmed. Log in to get started.', kind: 'success' },
-	'logged-in': { message: 'You’re logged in.', kind: 'success' },
-	'username-picked': { message: 'All set. Welcome to Hear Me Out!', kind: 'success' },
-	'pwned-password': {
+export const REDIRECT_TOASTS: Record<
+	string,
+	{ message: string; kind: ToastKind; durationMs?: number }
+> = {
+	welcome: {
 		message:
-			'You’re logged in. Heads up: your password has appeared in a data breach (found on Have I Been Pwned), so it’s easy for others to guess. We recommend changing it in Settings.',
-		kind: 'info',
+			"Your email is confirmed and you’re logged in. Welcome to Hear Me Out!",
+		kind: "success"
+	},
+	confirmed: {
+		message: "Your email is confirmed. Log in to get started.",
+		kind: "success"
+	},
+	"logged-in": { message: "You’re logged in.", kind: "success" },
+	"username-picked": {
+		message: "All set. Welcome to Hear Me Out!",
+		kind: "success"
+	},
+	"pwned-password": {
+		message:
+			"You’re logged in. Heads up: your password has appeared in a data breach (found on Have I Been Pwned), so it’s easy for others to guess. We recommend changing it in Settings.",
+		kind: "info",
 		durationMs: 15000
 	},
-	'template-saved': { message: 'Template saved.', kind: 'success' },
-	'template-deleted': { message: 'Template deleted.', kind: 'info' },
-	'list-deleted': { message: 'Tier list deleted.', kind: 'info' },
-	'account-deleted': { message: 'Your account and everything in it has been deleted. Bye for now!', kind: 'info' }
+	"password-reset": {
+		message: "Your new password is saved, and you’re logged in.",
+		kind: "success"
+	},
+	"template-saved": { message: "Template saved.", kind: "success" },
+	"template-deleted": { message: "Template deleted.", kind: "info" },
+	"list-deleted": { message: "Tier list deleted.", kind: "info" },
+	"account-deleted": {
+		message: "Your account and everything in it has been deleted. Bye for now!",
+		kind: "info"
+	}
 };

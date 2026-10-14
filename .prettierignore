@@ -1,0 +1,9 @@
+# Generated or installed files
+node_modules
+.svelte-kit
+.vercel
+build
+package-lock.json
+
+# Database schema is hand-formatted
+supabase/
