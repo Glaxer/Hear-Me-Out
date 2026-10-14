@@ -16,6 +16,7 @@ export const actions: Actions = {
     const email = String(form.get("email") ?? "").trim();
     const username = String(form.get("username") ?? "").trim();
     const password = String(form.get("password") ?? "");
+    const captchaToken = String(form.get("captcha_token") ?? "") || undefined;
 
     const values = { email, username };
 
@@ -45,13 +46,18 @@ export const actions: Actions = {
       email,
       password,
       options: {
+        captchaToken,
         data: { username },
         emailRedirectTo: `${url.origin}/auth/confirm`,
       },
     });
 
     if (error) {
-      return fail(400, { ...values, error: error.message });
+      const message =
+        error.code === "captcha_failed"
+          ? "We couldn’t verify that you’re human. Please try again."
+          : error.message;
+      return fail(400, { ...values, error: message });
     }
 
     // If email confirmation is turned off in Supabase, the user is signed in right away.

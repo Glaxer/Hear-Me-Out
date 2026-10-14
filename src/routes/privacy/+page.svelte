@@ -80,6 +80,11 @@
       <strong>Google Fonts</strong> serves the site’s fonts, which means Google receives
       your IP address when a page loads.
     </li>
+    <li>
+      <strong>Cloudflare Turnstile</strong> checks that sign-ups and logins come
+      from a real person, not a bot. For this, Cloudflare receives your IP address
+      and some information about your browser on the sign-up and login pages.
+    </li>
   </ul>
 
   <h2>Why</h2>

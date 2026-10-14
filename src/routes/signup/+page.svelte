@@ -1,9 +1,12 @@
 <script lang="ts">
   import { enhance } from "$app/forms";
+  import Turnstile, { captchaEnabled } from "$lib/components/Turnstile.svelte";
   import type { ActionData } from "./$types";
 
   let { form }: { form: ActionData } = $props();
   let submitting = $state(false);
+  let captchaToken = $state<string | null>(null);
+  let turnstile = $state<Turnstile>();
 </script>
 
 <svelte:head><title>Sign up · Hear Me Out</title></svelte:head>
@@ -25,6 +28,7 @@
         return async ({ update }) => {
           await update({ reset: false });
           submitting = false;
+          turnstile?.reset(); // each check can only be used once
         };
       }}
     >
@@ -73,7 +77,13 @@
         <small>At least 8 characters.</small>
       </div>
 
-      <button class="btn" type="submit" disabled={submitting}>
+      <Turnstile bind:this={turnstile} bind:token={captchaToken} />
+
+      <button
+        class="btn"
+        type="submit"
+        disabled={submitting || (captchaEnabled && !captchaToken)}
+      >
         {submitting ? "Creating account…" : "Sign up"}
       </button>
       <p class="muted small">
