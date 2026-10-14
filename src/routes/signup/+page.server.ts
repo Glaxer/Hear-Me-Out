@@ -1,0 +1,59 @@
+import { fail, redirect } from '@sveltejs/kit';
+import type { Actions, PageServerLoad } from './$types';
+
+export const load: PageServerLoad = async ({ locals }) => {
+	if (locals.user) redirect(303, '/me');
+};
+
+const USERNAME = /^[a-zA-Z0-9_]{3,30}$/;
+
+export const actions: Actions = {
+	default: async ({ request, locals, url }) => {
+		const form = await request.formData();
+		const email = String(form.get('email') ?? '').trim();
+		const username = String(form.get('username') ?? '').trim();
+		const password = String(form.get('password') ?? '');
+
+		const values = { email, username };
+
+		if (!email || !username || !password) {
+			return fail(400, { ...values, error: 'Please fill in all fields.' });
+		}
+		if (!USERNAME.test(username)) {
+			return fail(400, {
+				...values,
+				error: 'Username must be 3–30 characters: letters, numbers and underscores.'
+			});
+		}
+		if (password.length < 8) {
+			return fail(400, { ...values, error: 'Password must be at least 8 characters.' });
+		}
+
+		const { data: taken } = await locals.supabase
+			.from('profiles')
+			.select('id')
+			.ilike('username', username)
+			.maybeSingle();
+		if (taken) {
+			return fail(400, { ...values, error: 'That username is already taken.' });
+		}
+
+		const { data, error } = await locals.supabase.auth.signUp({
+			email,
+			password,
+			options: {
+				data: { username },
+				emailRedirectTo: `${url.origin}/auth/confirm?next=/me`
+			}
+		});
+
+		if (error) {
+			return fail(400, { ...values, error: error.message });
+		}
+
+		// If email confirmation is turned off in Supabase, the user is signed in right away.
+		if (data.session) redirect(303, '/me');
+
+		return { ...values, checkEmail: true };
+	}
+};

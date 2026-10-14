@@ -1,0 +1,150 @@
+<script lang="ts">
+	import { enhance } from '$app/forms';
+	import ItemTile from '$lib/components/ItemTile.svelte';
+	import TierListView from '$lib/components/TierListView.svelte';
+	import type { PageData } from './$types';
+
+	let { data }: { data: PageData } = $props();
+
+	const isOwner = $derived(data.user?.id === data.template.owner_id);
+	const mine = $derived(data.lists.filter((l) => l.owner_id === data.user?.id));
+	const others = $derived(data.lists.filter((l) => l.owner_id !== data.user?.id && l.is_public));
+	let showItems = $state(false);
+</script>
+
+<svelte:head><title>{data.template.title} · Hear Me Out</title></svelte:head>
+
+<div class="head">
+	<div>
+		<p class="row crumbs">
+			<span class="chip">{data.template.category}</span>
+			<span class="muted">by {data.template.profiles?.username ?? 'someone'}</span>
+		</p>
+		<h1>{data.template.title}</h1>
+		{#if data.template.description}<p class="desc">{data.template.description}</p>{/if}
+	</div>
+	<div class="actions">
+		<a class="btn" href="/templates/{data.template.id}/rank">
+			{mine.length ? 'Make another ranking' : 'Rank this'}
+		</a>
+		{#if isOwner}
+			<form
+				method="POST"
+				action="?/delete"
+				use:enhance={({ cancel }) => {
+					if (!confirm('Delete this template and every tier list made from it?')) cancel();
+				}}
+			>
+				<button class="btn btn-danger btn-small" type="submit">Delete template</button>
+			</form>
+		{/if}
+	</div>
+</div>
+
+<button class="link-button muted" type="button" aria-expanded={showItems} onclick={() => (showItems = !showItems)}>
+	{showItems ? 'Hide' : 'Show'} the {data.items.length} items in this template
+</button>
+{#if showItems}
+	<div class="items">
+		{#each data.items as item (item.id)}
+			<div class="item-tile"><ItemTile {item} /></div>
+		{/each}
+	</div>
+{/if}
+
+{#if mine.length}
+	<section class="section">
+		<div class="section-head"><h2>Your rankings</h2></div>
+		<div class="list-grid">
+			{#each mine as list (list.id)}
+				<a class="card list-card" href="/lists/{list.id}">
+					<div class="list-card-head">
+						<strong>{list.title}</strong>
+						{#if !list.is_public}<span class="chip">Private</span>{/if}
+					</div>
+					<TierListView tiers={list.tiers} placements={list.placements} items={data.items} compact />
+				</a>
+			{/each}
+		</div>
+	</section>
+{/if}
+
+<section class="section">
+	<div class="section-head">
+		<h2>Everyone’s rankings <span class="muted">({others.length})</span></h2>
+	</div>
+	{#if others.length}
+		<div class="list-grid">
+			{#each others as list (list.id)}
+				<a class="card list-card" href="/lists/{list.id}">
+					<div class="list-card-head">
+						<strong>{list.title}</strong>
+						<span class="muted">{list.profiles?.username ?? 'someone'}</span>
+					</div>
+					<TierListView tiers={list.tiers} placements={list.placements} items={data.items} compact />
+				</a>
+			{/each}
+		</div>
+	{:else}
+		<p class="empty">No one else has ranked this yet. Share the link to this page to get opinions!</p>
+	{/if}
+</section>
+
+<style>
+	.head {
+		display: flex;
+		justify-content: space-between;
+		align-items: flex-start;
+		gap: 24px;
+		flex-wrap: wrap;
+		margin-bottom: 12px;
+	}
+	.crumbs {
+		margin: 0 0 8px;
+		font-size: 0.875rem;
+	}
+	.desc {
+		max-width: 60ch;
+		margin: 0;
+	}
+	.actions {
+		display: grid;
+		gap: 8px;
+		justify-items: end;
+	}
+	.actions form {
+		margin: 0;
+	}
+	.items {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 4px;
+		margin-top: 12px;
+	}
+	.list-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+		gap: 16px;
+	}
+	.list-card {
+		display: grid;
+		gap: 10px;
+		text-decoration: none;
+		align-content: start;
+		transition: border-color 0.12s ease;
+	}
+	.list-card:hover {
+		border-color: var(--ink-soft);
+	}
+	.list-card-head {
+		display: flex;
+		justify-content: space-between;
+		gap: 8px;
+		align-items: baseline;
+	}
+	@media (max-width: 640px) {
+		.actions {
+			justify-items: start;
+		}
+	}
+</style>
