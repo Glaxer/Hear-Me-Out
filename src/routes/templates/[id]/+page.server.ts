@@ -1,4 +1,5 @@
 import { error, fail, redirect } from '@sveltejs/kit';
+import { IMAGE_BUCKET } from '$lib/images';
 import { isUuid, loadTemplate } from '$lib/server/data';
 import type { TierList } from '$lib/types';
 import type { Actions, PageServerLoad } from './$types';
@@ -25,12 +26,19 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 export const actions: Actions = {
 	delete: async ({ locals, params }) => {
 		if (!locals.user) redirect(303, '/login');
+		const { items } = await loadTemplate(locals.supabase, params.id);
 		const { error: err } = await locals.supabase
 			.from('templates')
 			.delete()
 			.eq('id', params.id)
 			.eq('owner_id', locals.user.id);
 		if (err) return fail(500, { error: 'Could not delete the template.' });
-		redirect(303, '/me');
+
+		// Best effort: remove the template's images from storage
+		const ownPrefix = `${locals.user.id}/`;
+		const paths = items.map((i) => i.image_path).filter((p): p is string => !!p && p.startsWith(ownPrefix));
+		if (paths.length) await locals.supabase.storage.from(IMAGE_BUCKET).remove(paths);
+
+		redirect(303, '/me?toast=template-deleted');
 	}
 };

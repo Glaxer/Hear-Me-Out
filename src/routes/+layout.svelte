@@ -1,10 +1,25 @@
 <script lang="ts">
 	import '../app.css';
 	import { env } from '$env/dynamic/public';
+	import { replaceState } from '$app/navigation';
+	import { page } from '$app/state';
+	import Toaster from '$lib/components/Toaster.svelte';
+	import { REDIRECT_TOASTS, toast } from '$lib/toast.svelte';
 	import type { Snippet } from 'svelte';
 	import type { LayoutData } from './$types';
 
 	let { data, children }: { data: LayoutData; children: Snippet } = $props();
+
+	// Show a toast when a server redirect adds ?toast=<key>, then remove it from the address bar
+	$effect(() => {
+		const key = page.url.searchParams.get('toast');
+		if (!key) return;
+		const t = REDIRECT_TOASTS[key];
+		if (t) toast(t.message, t.kind);
+		const clean = new URL(page.url);
+		clean.searchParams.delete('toast');
+		replaceState(clean, page.state);
+	});
 </script>
 
 <header class="site-header">
@@ -37,6 +52,8 @@
 <main class="container page">
 	{@render children()}
 </main>
+
+<Toaster />
 
 <footer class="site-footer container">
 	<p>Every great ranking starts with “hear me out…”</p>

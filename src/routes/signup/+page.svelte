@@ -14,7 +14,7 @@
 	{#if form?.checkEmail}
 		<p class="form-success">
 			Almost there! We sent a confirmation link to <strong>{form.email}</strong>. Click it to
-			finish signing up.
+			finish signing up. You’ll be logged in straight away.
 		</p>
 	{:else}
 		<form

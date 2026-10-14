@@ -8,7 +8,12 @@
 <svelte:head><title>Rank: {data.template.title} · Hear Me Out</title></svelte:head>
 
 <p class="muted back"><a href="/templates/{data.template.id}">← {data.template.title}</a></p>
-<h1>Your ranking</h1>
+<div class="title-row">
+	<h1>Your ranking</h1>
+	{#if data.user?.id === data.template.owner_id}
+		<a class="btn btn-secondary btn-small" href="/templates/{data.template.id}/edit">Add or change items</a>
+	{/if}
+</div>
 
 <ListForm
 	items={data.items}
@@ -23,5 +28,12 @@
 <style>
 	.back {
 		margin: 0 0 8px;
+	}
+	.title-row {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: 12px;
+		flex-wrap: wrap;
 	}
 </style>

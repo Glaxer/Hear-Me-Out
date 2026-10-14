@@ -28,6 +28,7 @@
 			{mine.length ? 'Make another ranking' : 'Rank this'}
 		</a>
 		{#if isOwner}
+			<a class="btn btn-secondary btn-small" href="/templates/{data.template.id}/edit">Edit template</a>
 			<form
 				method="POST"
 				action="?/delete"

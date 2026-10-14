@@ -19,6 +19,6 @@ export const actions: Actions = {
 			.eq('id', params.id)
 			.eq('owner_id', locals.user.id);
 		if (err) return fail(500, { error: 'Could not delete the tier list.' });
-		redirect(303, `/templates/${list.template_id}`);
+		redirect(303, `/templates/${list.template_id}?toast=list-deleted`);
 	}
 };

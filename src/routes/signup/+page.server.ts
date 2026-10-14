@@ -43,7 +43,7 @@ export const actions: Actions = {
 			password,
 			options: {
 				data: { username },
-				emailRedirectTo: `${url.origin}/auth/confirm?next=/me`
+				emailRedirectTo: `${url.origin}/auth/confirm`
 			}
 		});
 

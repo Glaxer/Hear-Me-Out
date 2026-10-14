@@ -3,22 +3,28 @@ import type { EmailOtpType } from '@supabase/supabase-js';
 
 /**
  * Landing page for the email confirmation link.
- * Supports both the PKCE (Proof Key for Code Exchange) "code" flow and the "token_hash" flow,
- * depending on how the Supabase email template is set up.
+ *
+ * - token_hash flow (recommended, set up in the Supabase email template): works on any device,
+ *   so the user is logged in even if they open the email on their phone.
+ * - code flow (Supabase's default link): only logs in if the link is opened in the same browser
+ *   that signed up. On another device the email is still confirmed, so we send them to log in.
  */
 export const GET: RequestHandler = async ({ url, locals }) => {
 	const code = url.searchParams.get('code');
 	const tokenHash = url.searchParams.get('token_hash');
-	const type = url.searchParams.get('type') as EmailOtpType | null;
-	const nextParam = url.searchParams.get('next') ?? '/me';
-	const next = nextParam.startsWith('/') && !nextParam.startsWith('//') ? nextParam : '/me';
+	const type = (url.searchParams.get('type') ?? 'email') as EmailOtpType;
+
+	if (tokenHash) {
+		const { error } = await locals.supabase.auth.verifyOtp({ token_hash: tokenHash, type });
+		if (!error) redirect(303, '/me?toast=welcome');
+		redirect(303, '/login?confirmError=1');
+	}
 
 	if (code) {
 		const { error } = await locals.supabase.auth.exchangeCodeForSession(code);
-		if (!error) redirect(303, next);
-	} else if (tokenHash && type) {
-		const { error } = await locals.supabase.auth.verifyOtp({ token_hash: tokenHash, type });
-		if (!error) redirect(303, next);
+		if (!error) redirect(303, '/me?toast=welcome');
+		// Supabase only hands out a code after confirming the email, so the account is confirmed
+		redirect(303, '/login?toast=confirmed');
 	}
 
 	redirect(303, '/login?confirmError=1');
