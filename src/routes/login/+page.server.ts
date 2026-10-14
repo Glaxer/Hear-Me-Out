@@ -1,5 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { enabledOAuthProviders, safeRedirect } from '$lib/server/auth';
+import { isPwnedPassword } from '$lib/server/pwned';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals, url, fetch }) => {
@@ -18,6 +19,9 @@ export const actions: Actions = {
 			return fail(400, { email, error: 'Please enter your email and password.' });
 		}
 
+		// Checked alongside the login (not before it), so it adds no waiting time
+		const pwned = isPwnedPassword(password);
+
 		const { error } = await locals.supabase.auth.signInWithPassword({
 			email,
 			password,
@@ -33,6 +37,9 @@ export const actions: Actions = {
 			return fail(400, { email, error: message });
 		}
 
-		redirect(303, safeRedirect(url.searchParams.get('redirectTo')));
+		// A leaked password never blocks logging in; it just shows a warning afterwards
+		const to = safeRedirect(url.searchParams.get('redirectTo'));
+		if (await pwned) redirect(303, `${to}${to.includes('?') ? '&' : '?'}toast=pwned-password`);
+		redirect(303, to);
 	}
 };

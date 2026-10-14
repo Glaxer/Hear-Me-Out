@@ -1,6 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { IMAGE_BUCKET } from '$lib/images';
 import { hasPassword } from '$lib/server/auth';
+import { isPwnedPassword, PWNED_MESSAGE } from '$lib/server/pwned';
 import { MIN_PASSWORD_LENGTH, USERNAME_HINT, USERNAME_PATTERN } from '$lib/validation';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Actions, PageServerLoad } from './$types';
@@ -63,6 +64,9 @@ export const actions: Actions = {
 		}
 		if (password !== confirm) {
 			return fail(400, { section: 'password', error: 'The two passwords don’t match.' });
+		}
+		if (await isPwnedPassword(password)) {
+			return fail(400, { section: 'password', error: PWNED_MESSAGE });
 		}
 
 		const { error } = await locals.supabase.auth.updateUser({ password });

@@ -1,5 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { enabledOAuthProviders, safeRedirect } from '$lib/server/auth';
+import { isPwnedPassword, PWNED_MESSAGE } from '$lib/server/pwned';
 import { MIN_PASSWORD_LENGTH, USERNAME_HINT, USERNAME_PATTERN } from '$lib/validation';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -26,6 +27,9 @@ export const actions: Actions = {
 		}
 		if (password.length < MIN_PASSWORD_LENGTH) {
 			return fail(400, { ...values, error: 'Password must be at least 8 characters.' });
+		}
+		if (await isPwnedPassword(password)) {
+			return fail(400, { ...values, error: PWNED_MESSAGE });
 		}
 
 		const { data: taken } = await locals.supabase

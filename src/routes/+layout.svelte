@@ -24,7 +24,7 @@
     const key = to?.url.searchParams.get("toast");
     if (!to || !key) return;
     const t = REDIRECT_TOASTS[key];
-    if (t) toast(t.message, t.kind);
+    if (t) toast(t.message, t.kind, t.durationMs);
     const clean = new URL(to.url);
     clean.searchParams.delete("toast");
     // The router finishes setting up right after this callback; wait one tick before touching history
