@@ -1,21 +1,21 @@
 <script lang="ts">
-	import { toast } from '$lib/toast.svelte';
+	import { toast } from "$lib/toast.svelte";
 
 	/**
 	 * A "Copy link" button. `variant="card"` wraps it with a heading and hint text.
 	 */
 	let {
 		url,
-		label = 'Copy link',
-		heading = '',
-		hint = '',
-		variant = 'button'
+		label = "Copy link",
+		heading = "",
+		hint = "",
+		variant = "button"
 	}: {
 		url: string;
 		label?: string;
 		heading?: string;
 		hint?: string;
-		variant?: 'button' | 'card';
+		variant?: "button" | "card";
 	} = $props();
 
 	let copied = $state(false);
@@ -26,19 +26,24 @@
 			await navigator.clipboard.writeText(url);
 		} catch {
 			// Older browsers / non-secure pages: fall back to a temporary text field
-			const field = Object.assign(document.createElement('textarea'), { value: url });
-			field.style.position = 'fixed';
-			field.style.opacity = '0';
+			const field = Object.assign(document.createElement("textarea"), {
+				value: url
+			});
+			field.style.position = "fixed";
+			field.style.opacity = "0";
 			document.body.append(field);
 			field.select();
-			const ok = document.execCommand('copy');
+			const ok = document.execCommand("copy");
 			field.remove();
 			if (!ok) {
-				toast('Couldn’t copy the link. Copy it from the address bar instead.', 'error');
+				toast(
+					"Couldn’t copy the link. Copy it from the address bar instead.",
+					"error"
+				);
 				return;
 			}
 		}
-		toast('Link copied. Paste it anywhere to share.');
+		toast("Link copied. Paste it anywhere to share.");
 		copied = true;
 		clearTimeout(timer);
 		timer = setTimeout(() => (copied = false), 2000);
@@ -46,22 +51,28 @@
 </script>
 
 {#snippet button(extraClass: string)}
-	<button class="btn {extraClass} copy" class:copied type="button" onclick={copy} aria-live="polite">
-		<span aria-hidden="true">{copied ? '✓' : '🔗'}</span>
-		{copied ? 'Copied!' : label}
+	<button
+		class="btn {extraClass} copy"
+		class:copied
+		type="button"
+		onclick={copy}
+		aria-live="polite"
+	>
+		<span aria-hidden="true">{copied ? "✓" : "🔗"}</span>
+		{copied ? "Copied!" : label}
 	</button>
 {/snippet}
 
-{#if variant === 'card'}
+{#if variant === "card"}
 	<div class="card share-card">
 		<div class="text">
 			{#if heading}<strong>{heading}</strong>{/if}
 			{#if hint}<p class="muted">{hint}</p>{/if}
 		</div>
-		{@render button('')}
+		{@render button("")}
 	</div>
 {:else}
-	{@render button('btn-secondary btn-small')}
+	{@render button("btn-secondary btn-small")}
 {/if}
 
 <style>

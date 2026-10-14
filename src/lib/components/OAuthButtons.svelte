@@ -9,7 +9,10 @@
 		redirectTo = null
 	}: { providers: string[]; redirectTo?: string | null } = $props();
 
-	const NAMES: Record<string, string> = { google: 'Google', discord: 'Discord' };
+	const NAMES: Record<string, string> = {
+		google: "Google",
+		discord: "Discord"
+	};
 </script>
 
 {#if providers.length}
@@ -17,7 +20,11 @@
 		{#each providers as provider (provider)}
 			<form method="POST" action="/auth/oauth">
 				<input type="hidden" name="provider" value={provider} />
-				{#if redirectTo}<input type="hidden" name="redirectTo" value={redirectTo} />{/if}
+				{#if redirectTo}<input
+						type="hidden"
+						name="redirectTo"
+						value={redirectTo}
+					/>{/if}
 				<button class="btn btn-secondary oauth-button {provider}" type="submit">
 					Continue with {NAMES[provider] ?? provider}
 				</button>
@@ -50,7 +57,7 @@
 	}
 	.divider::before,
 	.divider::after {
-		content: '';
+		content: "";
 		flex: 1;
 		height: 1px;
 		background: var(--line);

@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { onMount, untrack } from 'svelte';
-	import ItemTile from './ItemTile.svelte';
-	import TierControls from './TierControls.svelte';
-	import TierLabel from './TierLabel.svelte';
-	import { unrankedIds } from '$lib/tiers';
-	import { tooltip } from '$lib/tooltip';
-	import type { Placements, TemplateItem, Tier } from '$lib/types';
+	import { onMount, untrack } from "svelte";
+	import ItemTile from "./ItemTile.svelte";
+	import TierControls from "./TierControls.svelte";
+	import TierLabel from "./TierLabel.svelte";
+	import { unrankedIds } from "$lib/tiers";
+	import { tooltip } from "$lib/tooltip";
+	import type { Placements, TemplateItem, Tier } from "$lib/types";
 
 	let {
 		items,
@@ -20,14 +20,17 @@
 		onchange?: (tiers: Tier[], placements: Placements) => void;
 	} = $props();
 
-	const POOL = '__pool';
+	const POOL = "__pool";
 
 	// Editor state is seeded once from props; after that the editor owns it.
-	let tiers = $state<Tier[]>(untrack(() => $state.snapshot(initialTiers) as Tier[]));
+	let tiers = $state<Tier[]>(
+		untrack(() => $state.snapshot(initialTiers) as Tier[])
+	);
 	let placements = $state<Placements>(
 		untrack(() => {
 			const p: Placements = {};
-			for (const t of initialTiers) p[t.id] = [...(initialPlacements[t.id] ?? [])];
+			for (const t of initialTiers)
+				p[t.id] = [...(initialPlacements[t.id] ?? [])];
 			return p;
 		})
 	);
@@ -58,11 +61,13 @@
 	/** True on phones/tablets: there, dragging is done with our own touch handling, not the browser's. */
 	let coarsePointer = $state(false);
 	onMount(() => {
-		coarsePointer = window.matchMedia('(pointer: coarse)').matches;
+		coarsePointer = window.matchMedia("(pointer: coarse)").matches;
 	});
 
 	const byId = $derived(new Map(items.map((i) => [i.id, i])));
-	const selectedLabel = $derived(selectedId ? byId.get(selectedId)?.label : null);
+	const selectedLabel = $derived(
+		selectedId ? byId.get(selectedId)?.label : null
+	);
 
 	// Serialised for the surrounding <form>
 	const tiersJson = $derived(JSON.stringify(tiers));
@@ -113,12 +118,16 @@
 	function onDragStart(e: DragEvent, id: string) {
 		draggingId = id;
 		if (!e.dataTransfer) return;
-		e.dataTransfer.setData('text/plain', id);
-		e.dataTransfer.effectAllowed = 'move';
+		e.dataTransfer.setData("text/plain", id);
+		e.dataTransfer.effectAllowed = "move";
 		// Use the tile itself as the drag preview (instead of the browser's text/URL label)
 		const el = e.currentTarget as HTMLElement;
 		const rect = el.getBoundingClientRect();
-		e.dataTransfer.setDragImage(el, e.clientX - rect.left, e.clientY - rect.top);
+		e.dataTransfer.setDragImage(
+			el,
+			e.clientX - rect.left,
+			e.clientY - rect.top
+		);
 	}
 
 	function onDragEnd() {
@@ -131,27 +140,54 @@
 	 * Finds the gap the pointer is in: before the first tile that is on a lower row,
 	 * or on the same row with its middle to the right of the pointer. Otherwise: at the end.
 	 */
-	function findDropTarget(e: { clientX: number; clientY: number }, zone: string, zoneEl: HTMLElement): DropTarget {
-		const tiles = Array.from(zoneEl.querySelectorAll<HTMLElement>(':scope > .editor-tile'));
+	function findDropTarget(
+		e: { clientX: number; clientY: number },
+		zone: string,
+		zoneEl: HTMLElement
+	): DropTarget {
+		const tiles = Array.from(
+			zoneEl.querySelectorAll<HTMLElement>(":scope > .editor-tile")
+		);
 		const box = zoneEl.getBoundingClientRect();
 		const originX = box.left + zoneEl.clientLeft;
 		const originY = box.top + zoneEl.clientTop;
 
 		for (const tile of tiles) {
 			const r = tile.getBoundingClientRect();
-			if (e.clientY < r.top || (e.clientY <= r.bottom && e.clientX < r.left + r.width / 2)) {
-				return { zone, beforeId: tile.dataset.id!, x: r.left - originX - 2, y: r.top - originY, height: r.height };
+			if (
+				e.clientY < r.top ||
+				(e.clientY <= r.bottom && e.clientX < r.left + r.width / 2)
+			) {
+				return {
+					zone,
+					beforeId: tile.dataset.id!,
+					x: r.left - originX - 2,
+					y: r.top - originY,
+					height: r.height
+				};
 			}
 		}
 
 		const last = tiles.at(-1);
 		if (last) {
 			const r = last.getBoundingClientRect();
-			return { zone, beforeId: null, x: r.right - originX + 2, y: r.top - originY, height: r.height };
+			return {
+				zone,
+				beforeId: null,
+				x: r.right - originX + 2,
+				y: r.top - originY,
+				height: r.height
+			};
 		}
 		// Empty tier: line at the start
 		const pad = parseFloat(getComputedStyle(zoneEl).paddingTop) || 4;
-		return { zone, beforeId: null, x: pad, y: pad, height: Math.max(40, zoneEl.clientHeight - pad * 2) };
+		return {
+			zone,
+			beforeId: null,
+			x: pad,
+			y: pad,
+			height: Math.max(40, zoneEl.clientHeight - pad * 2)
+		};
 	}
 
 	/** True when dropping here would leave the item exactly where it already is. */
@@ -160,16 +196,25 @@
 		const list = listFor(target.zone);
 		const index = list.indexOf(draggingId);
 		if (index < 0) return false;
-		return target.beforeId === draggingId || target.beforeId === (list[index + 1] ?? null);
+		return (
+			target.beforeId === draggingId ||
+			target.beforeId === (list[index + 1] ?? null)
+		);
 	}
 
 	function onZoneDragOver(e: DragEvent, zone: string) {
 		e.preventDefault();
-		if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+		if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
 		hoverZone = zone;
 		const target = findDropTarget(e, zone, e.currentTarget as HTMLElement);
 		// Only update when the gap changes, to avoid needless re-renders while the mouse moves
-		if (!drop || drop.zone !== target.zone || drop.beforeId !== target.beforeId || drop.x !== target.x || drop.y !== target.y) {
+		if (
+			!drop ||
+			drop.zone !== target.zone ||
+			drop.beforeId !== target.beforeId ||
+			drop.x !== target.x ||
+			drop.y !== target.y
+		) {
 			drop = target;
 		}
 	}
@@ -183,8 +228,11 @@
 
 	function onZoneDrop(e: DragEvent, zone: string) {
 		e.preventDefault();
-		const id = e.dataTransfer?.getData('text/plain') || draggingId;
-		const target = drop?.zone === zone ? drop : findDropTarget(e, zone, e.currentTarget as HTMLElement);
+		const id = e.dataTransfer?.getData("text/plain") || draggingId;
+		const target =
+			drop?.zone === zone
+				? drop
+				: findDropTarget(e, zone, e.currentTarget as HTMLElement);
 		if (id) place(id, zone, target.beforeId ?? undefined);
 		onDragEnd();
 	}
@@ -196,19 +244,31 @@
 
 	let ghost = $state<{ id: string; x: number; y: number } | null>(null);
 	let holdTimer: ReturnType<typeof setTimeout> | undefined;
-	let pending: { id: string; startX: number; startY: number; x: number; y: number } | null = null;
+	let pending: {
+		id: string;
+		startX: number;
+		startY: number;
+		x: number;
+		y: number;
+	} | null = null;
 	let touchDragging = false;
 	let suppressClick = false;
 	let scrollFrame = 0;
 
 	function onTilePointerDown(e: PointerEvent, id: string) {
-		if (e.pointerType === 'mouse' || touchDragging) return;
-		pending = { id, startX: e.clientX, startY: e.clientY, x: e.clientX, y: e.clientY };
+		if (e.pointerType === "mouse" || touchDragging) return;
+		pending = {
+			id,
+			startX: e.clientX,
+			startY: e.clientY,
+			x: e.clientX,
+			y: e.clientY
+		};
 		clearTimeout(holdTimer);
 		holdTimer = setTimeout(startTouchDrag, HOLD_MS);
-		window.addEventListener('pointermove', onTouchMove);
-		window.addEventListener('pointerup', onTouchEnd);
-		window.addEventListener('pointercancel', cancelTouch);
+		window.addEventListener("pointermove", onTouchMove);
+		window.addEventListener("pointerup", onTouchEnd);
+		window.addEventListener("pointercancel", cancelTouch);
 	}
 
 	function startTouchDrag() {
@@ -219,7 +279,7 @@
 		ghost = { id: pending.id, x: pending.x, y: pending.y };
 		navigator.vibrate?.(15);
 		// Stop the page from scrolling while an item is being dragged
-		document.addEventListener('touchmove', blockScroll, { passive: false });
+		document.addEventListener("touchmove", blockScroll, { passive: false });
 		scrollFrame = requestAnimationFrame(autoScroll);
 		updateTouchDrop();
 	}
@@ -234,7 +294,11 @@
 		pending.y = e.clientY;
 		if (!touchDragging) {
 			// Moved before the hold finished: the person is scrolling, not dragging
-			if (Math.hypot(e.clientX - pending.startX, e.clientY - pending.startY) > MOVE_TOLERANCE) cancelTouch();
+			if (
+				Math.hypot(e.clientX - pending.startX, e.clientY - pending.startY) >
+				MOVE_TOLERANCE
+			)
+				cancelTouch();
 			return;
 		}
 		ghost = { id: pending.id, x: e.clientX, y: e.clientY };
@@ -245,7 +309,7 @@
 	function updateTouchDrop() {
 		if (!pending) return;
 		const under = document.elementFromPoint(pending.x, pending.y);
-		const zoneEl = under?.closest<HTMLElement>('.drop-zone[data-zone]');
+		const zoneEl = under?.closest<HTMLElement>(".drop-zone[data-zone]");
 		if (!zoneEl) {
 			drop = null;
 			hoverZone = null;
@@ -253,14 +317,23 @@
 		}
 		const zone = zoneEl.dataset.zone!;
 		hoverZone = zone;
-		drop = findDropTarget({ clientX: pending.x, clientY: pending.y }, zone, zoneEl);
+		drop = findDropTarget(
+			{ clientX: pending.x, clientY: pending.y },
+			zone,
+			zoneEl
+		);
 	}
 
 	/** Scrolls the page while the finger is near the top or bottom edge. */
 	function autoScroll() {
 		if (!touchDragging || !pending) return;
 		const { y } = pending;
-		const speed = y < EDGE ? -Math.ceil((EDGE - y) / 6) : y > window.innerHeight - EDGE ? Math.ceil((y - (window.innerHeight - EDGE)) / 6) : 0;
+		const speed =
+			y < EDGE
+				? -Math.ceil((EDGE - y) / 6)
+				: y > window.innerHeight - EDGE
+					? Math.ceil((y - (window.innerHeight - EDGE)) / 6)
+					: 0;
 		if (speed) {
 			window.scrollBy(0, speed);
 			updateTouchDrop();
@@ -271,7 +344,8 @@
 	function onTouchEnd() {
 		if (touchDragging && pending) {
 			const target = drop;
-			if (target && !isNoMove(target)) place(pending.id, target.zone, target.beforeId ?? undefined);
+			if (target && !isNoMove(target))
+				place(pending.id, target.zone, target.beforeId ?? undefined);
 			// Lifting the finger can also count as a tap on the item; ignore taps for a moment
 			suppressClick = true;
 			setTimeout(() => (suppressClick = false), 400);
@@ -282,10 +356,10 @@
 	function cancelTouch() {
 		clearTimeout(holdTimer);
 		cancelAnimationFrame(scrollFrame);
-		window.removeEventListener('pointermove', onTouchMove);
-		window.removeEventListener('pointerup', onTouchEnd);
-		window.removeEventListener('pointercancel', cancelTouch);
-		document.removeEventListener('touchmove', blockScroll);
+		window.removeEventListener("pointermove", onTouchMove);
+		window.removeEventListener("pointerup", onTouchEnd);
+		window.removeEventListener("pointercancel", cancelTouch);
+		document.removeEventListener("touchmove", blockScroll);
 		if (touchDragging) {
 			draggingId = null;
 			hoverZone = null;
@@ -306,7 +380,7 @@
 	}
 
 	function onKeydown(e: KeyboardEvent) {
-		if (e.key === 'Escape') selectedId = null;
+		if (e.key === "Escape") selectedId = null;
 	}
 </script>
 
@@ -324,7 +398,7 @@
 			data-id={id}
 			class:dragging={draggingId === id}
 			class:selected={selectedId === id}
-			draggable={coarsePointer ? 'false' : 'true'}
+			draggable={coarsePointer ? "false" : "true"}
 			aria-pressed={selectedId === id}
 			use:tooltip={item.label}
 			aria-label="{item.label}{selectedId === id ? ' (selected)' : ''}"
@@ -341,13 +415,23 @@
 
 {#snippet dropLine(zone: string)}
 	{#if drop?.zone === zone && !isNoMove(drop)}
-		<span class="drop-line" aria-hidden="true" style:left="{drop.x}px" style:top="{drop.y}px" style:height="{drop.height}px"></span>
+		<span
+			class="drop-line"
+			aria-hidden="true"
+			style:left="{drop.x}px"
+			style:top="{drop.y}px"
+			style:height="{drop.height}px"
+		></span>
 	{/if}
 {/snippet}
 
 {#snippet placeHere(zone: string, label: string)}
 	{#if selectedId}
-		<button type="button" class="place-here" onclick={() => selectedId && place(selectedId, zone)}>
+		<button
+			type="button"
+			class="place-here"
+			onclick={() => selectedId && place(selectedId, zone)}
+		>
 			Place in {label}
 		</button>
 	{/if}
@@ -372,9 +456,11 @@
 			aria-expanded={showTierSettings}
 			onclick={() => (showTierSettings = !showTierSettings)}
 		>
-			{showTierSettings ? 'Done editing tiers' : 'Edit tiers'}
+			{showTierSettings ? "Done editing tiers" : "Edit tiers"}
 		</button>
-		<button type="button" class="btn btn-secondary btn-small" onclick={resetAll}>Reset</button>
+		<button type="button" class="btn btn-secondary btn-small" onclick={resetAll}
+			>Reset</button
+		>
 	</div>
 </div>
 
@@ -424,16 +510,23 @@
 		{#each pool as id (id)}
 			{@render tile(id, POOL)}
 		{:else}
-			{#if !selectedId}<p class="muted all-done">Everything is ranked 🎉</p>{/if}
+			{#if !selectedId}<p class="muted all-done">
+					Everything is ranked 🎉
+				</p>{/if}
 		{/each}
-		{@render placeHere(POOL, 'unranked')}
+		{@render placeHere(POOL, "unranked")}
 	</div>
 </div>
 
 {#if ghost}
 	{@const item = byId.get(ghost.id)}
 	{#if item}
-		<div class="item-tile touch-ghost" aria-hidden="true" style:left="{ghost.x}px" style:top="{ghost.y}px">
+		<div
+			class="item-tile touch-ghost"
+			aria-hidden="true"
+			style:left="{ghost.x}px"
+			style:top="{ghost.y}px"
+		>
 			<ItemTile {item} />
 		</div>
 	{/if}
@@ -496,7 +589,7 @@
 	}
 	.drop-line::before,
 	.drop-line::after {
-		content: '';
+		content: "";
 		position: absolute;
 		left: -3px;
 		width: 10px;

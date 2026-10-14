@@ -1,10 +1,13 @@
-import type { Action } from 'svelte/action';
+import type { Action } from "svelte/action";
 
 let tip: HTMLDivElement | null = null;
 
 function show(anchor: HTMLElement, text: string) {
 	if (!text) return;
-	tip ??= Object.assign(document.createElement('div'), { className: 'hmo-tooltip', role: 'tooltip' });
+	tip ??= Object.assign(document.createElement("div"), {
+		className: "hmo-tooltip",
+		role: "tooltip"
+	});
 	tip.textContent = text;
 	document.body.append(tip);
 
@@ -14,7 +17,10 @@ function show(anchor: HTMLElement, text: string) {
 	const gap = 8;
 	let top = a.top - t.height - gap;
 	if (top < 8) top = a.bottom + gap;
-	const left = Math.min(Math.max(8, a.left + a.width / 2 - t.width / 2), window.innerWidth - t.width - 8);
+	const left = Math.min(
+		Math.max(8, a.left + a.width / 2 - t.width / 2),
+		window.innerWidth - t.width - 8
+	);
 	tip.style.top = `${top}px`;
 	tip.style.left = `${left}px`;
 }
@@ -31,12 +37,17 @@ function hide() {
 export const tooltip: Action<HTMLElement, string> = (node, text) => {
 	let current = text;
 	const onShow = () => show(node, current);
-	const events = ['pointerenter', 'focus'] as const;
-	const hideEvents = ['pointerleave', 'blur', 'pointerdown', 'dragstart'] as const;
+	const events = ["pointerenter", "focus"] as const;
+	const hideEvents = [
+		"pointerleave",
+		"blur",
+		"pointerdown",
+		"dragstart"
+	] as const;
 
 	events.forEach((e) => node.addEventListener(e, onShow));
 	hideEvents.forEach((e) => node.addEventListener(e, hide));
-	window.addEventListener('scroll', hide, { passive: true });
+	window.addEventListener("scroll", hide, { passive: true });
 
 	return {
 		update(next) {
@@ -45,7 +56,7 @@ export const tooltip: Action<HTMLElement, string> = (node, text) => {
 		destroy() {
 			events.forEach((e) => node.removeEventListener(e, onShow));
 			hideEvents.forEach((e) => node.removeEventListener(e, hide));
-			window.removeEventListener('scroll', hide);
+			window.removeEventListener("scroll", hide);
 			hide();
 		}
 	};

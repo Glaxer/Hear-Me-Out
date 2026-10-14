@@ -1,8 +1,8 @@
 <script lang="ts">
-	import ItemTile from './ItemTile.svelte';
-	import { textOn } from '$lib/tiers';
-	import type { TemplateItem, Tier } from '$lib/types';
-	import type { HotTake } from '$lib/verdict';
+	import ItemTile from "./ItemTile.svelte";
+	import { textOn } from "$lib/tiers";
+	import type { TemplateItem, Tier } from "$lib/types";
+	import type { HotTake } from "$lib/verdict";
 
 	let {
 		status,
@@ -12,7 +12,7 @@
 		isOwner,
 		rankHref
 	}: {
-		status: 'locked' | 'not-enough' | 'ready';
+		status: "locked" | "not-enough" | "ready";
 		takes: HotTake[] | null;
 		items: TemplateItem[];
 		/** Owner's username, for "Anna's hottest takes". */
@@ -22,27 +22,41 @@
 	} = $props();
 
 	const byId = $derived(new Map(items.map((i) => [i.id, i])));
-	const title = $derived(isOwner ? 'Your hottest takes' : `${whose}’s hottest takes`);
-	const subject = $derived(isOwner ? 'You' : whose);
+	const title = $derived(
+		isOwner ? "Your hottest takes" : `${whose}’s hottest takes`
+	);
+	const subject = $derived(isOwner ? "You" : whose);
 </script>
 
 {#snippet badge(tier: Tier)}
-	<span class="badge" style:background={tier.color} style:color={textOn(tier.color)}>{tier.label}</span>
+	<span
+		class="badge"
+		style:background={tier.color}
+		style:color={textOn(tier.color)}>{tier.label}</span
+	>
 {/snippet}
 
-{#if status === 'locked'}
+{#if status === "locked"}
 	<div class="card hot locked-takes">
 		<h2>🔥 {title}</h2>
-		<p class="muted">Make your own ranking of this template to see where {whose} disagrees with everyone else.</p>
+		<p class="muted">
+			Make your own ranking of this template to see where {whose} disagrees with everyone
+			else.
+		</p>
 		<a class="btn btn-small" href={rankHref}>Rank it</a>
 	</div>
-{:else if status === 'ready' && takes}
+{:else if status === "ready" && takes}
 	<div class="card hot">
 		<h2>🔥 {title}</h2>
 		{#if takes.length === 0}
-			<p class="muted">No hot takes here. This ranking pretty much agrees with everyone else.</p>
+			<p class="muted">
+				No hot takes here. This ranking pretty much agrees with everyone else.
+			</p>
 		{:else}
-			<p class="muted">Where {isOwner ? 'you disagree' : `${whose} disagrees`} most with everyone else’s rankings.</p>
+			<p class="muted">
+				Where {isOwner ? "you disagree" : `${whose} disagrees`} most with everyone
+				else’s rankings.
+			</p>
 			<ul>
 				{#each takes as take (take.itemId)}
 					{@const item = byId.get(take.itemId)}
@@ -52,13 +66,15 @@
 							<div class="take">
 								<strong>{item.label}</strong>
 								<span class="compare">
-									{subject} {isOwner ? 'put' : 'puts'} it in {@render badge(take.mine)}
+									{subject}
+									{isOwner ? "put" : "puts"} it in {@render badge(take.mine)}
 									<span class="muted">· everyone else says</span>
 									{@render badge(take.others)}
 								</span>
 								<span class="muted direction">
-									{take.diff > 0 ? '⬆ Rated higher' : '⬇ Rated lower'} than the other {take.otherVotes}
-									{take.otherVotes === 1 ? 'vote' : 'votes'}
+									{take.diff > 0 ? "⬆ Rated higher" : "⬇ Rated lower"} than the other
+									{take.otherVotes}
+									{take.otherVotes === 1 ? "vote" : "votes"}
 								</span>
 							</div>
 						</li>

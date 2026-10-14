@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { TIER_COLORS, newTierId } from '$lib/tiers';
-	import type { Tier } from '$lib/types';
+	import { TIER_COLORS, newTierId } from "$lib/tiers";
+	import type { Tier } from "$lib/types";
 
 	/** Rename, recolour, reorder, add and remove tiers. */
 	let {
@@ -14,7 +14,7 @@
 
 	function add() {
 		const color = TIER_COLORS[tiers.length % TIER_COLORS.length];
-		tiers = [...tiers, { id: newTierId(), label: 'New', color }];
+		tiers = [...tiers, { id: newTierId(), label: "New", color }];
 	}
 
 	function remove(index: number) {
@@ -71,7 +71,12 @@
 			>
 		</div>
 	{/each}
-	<button class="btn btn-secondary btn-small add" type="button" onclick={add} disabled={tiers.length >= 15}>
+	<button
+		class="btn btn-secondary btn-small add"
+		type="button"
+		onclick={add}
+		disabled={tiers.length >= 15}
+	>
 		+ Add tier
 	</button>
 </div>

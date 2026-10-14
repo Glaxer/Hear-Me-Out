@@ -1,35 +1,40 @@
-import { error, fail, redirect } from '@sveltejs/kit';
-import { IMAGE_BUCKET } from '$lib/images';
-import { isUuid, loadCountableRankings, loadTemplate } from '$lib/server/data';
-import type { TierList } from '$lib/types';
-import { computeVerdict, VERDICT_MIN_LISTS, type Verdict } from '$lib/verdict';
-import type { Actions, PageServerLoad } from './$types';
+import { error, fail, redirect } from "@sveltejs/kit";
+import { IMAGE_BUCKET } from "$lib/images";
+import { isUuid, loadCountableRankings, loadTemplate } from "$lib/server/data";
+import type { TierList } from "$lib/types";
+import { computeVerdict, VERDICT_MIN_LISTS, type Verdict } from "$lib/verdict";
+import type { Actions, PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ locals, params }) => {
-	if (!isUuid(params.id)) error(404, 'Template not found');
+	if (!isUuid(params.id)) error(404, "Template not found");
 	const { template, items } = await loadTemplate(locals.supabase, params.id);
 
 	// Public lists for this template, plus the viewer's own private ones (RLS handles visibility)
 	let query = locals.supabase
-		.from('tier_lists')
-		.select('id, owner_id, title, tiers, placements, visibility, updated_at, profiles(username)')
-		.eq('template_id', params.id);
+		.from("tier_lists")
+		.select(
+			"id, owner_id, title, tiers, placements, visibility, updated_at, profiles(username)"
+		)
+		.eq("template_id", params.id);
 	// Others' link-only lists stay off this page; your own lists all show
 	query = locals.user
 		? query.or(`visibility.eq.public,owner_id.eq.${locals.user.id}`)
-		: query.eq('visibility', 'public');
-	const { data: lists } = await query.order('updated_at', { ascending: false }).limit(60);
+		: query.eq("visibility", "public");
+	const { data: lists } = await query
+		.order("updated_at", { ascending: false })
+		.limit(60);
 	const shownLists = (lists ?? []) as unknown as TierList[];
 
 	// The verdict is hidden until you've ranked it yourself, so it can't sway your own ranking.
 	// It's only calculated (and sent to the browser) once you're allowed to see it.
 	const counted = await loadCountableRankings(locals.supabase, params.id);
-	const viewerHasRanked = !!locals.user && shownLists.some((l) => l.owner_id === locals.user!.id);
+	const viewerHasRanked =
+		!!locals.user && shownLists.some((l) => l.owner_id === locals.user!.id);
 	let verdict: Verdict | null = null;
-	let verdictState: 'locked' | 'waiting' | 'ready' = 'locked';
+	let verdictState: "locked" | "waiting" | "ready" = "locked";
 	if (viewerHasRanked) {
-		verdictState = counted.length >= VERDICT_MIN_LISTS ? 'ready' : 'waiting';
-		if (verdictState === 'ready') {
+		verdictState = counted.length >= VERDICT_MIN_LISTS ? "ready" : "waiting";
+		if (verdictState === "ready") {
 			verdict = computeVerdict(
 				template.default_tiers,
 				items.map((i) => i.id),
@@ -51,22 +56,23 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 export const actions: Actions = {
 	delete: async ({ locals, params }) => {
-		if (!locals.user) redirect(303, '/login');
+		if (!locals.user) redirect(303, "/login");
 		const { items } = await loadTemplate(locals.supabase, params.id);
 		const { error: err } = await locals.supabase
-			.from('templates')
+			.from("templates")
 			.delete()
-			.eq('id', params.id)
-			.eq('owner_id', locals.user.id);
-		if (err) return fail(500, { error: 'Could not delete the template.' });
+			.eq("id", params.id)
+			.eq("owner_id", locals.user.id);
+		if (err) return fail(500, { error: "Could not delete the template." });
 
 		// Best effort: remove the template's images from storage
 		const ownPrefix = `${locals.user.id}/`;
 		const paths = items
 			.flatMap((i) => [i.image_path, i.full_image_path])
 			.filter((p): p is string => !!p && p.startsWith(ownPrefix));
-		if (paths.length) await locals.supabase.storage.from(IMAGE_BUCKET).remove(paths);
+		if (paths.length)
+			await locals.supabase.storage.from(IMAGE_BUCKET).remove(paths);
 
-		redirect(303, '/me?toast=template-deleted');
+		redirect(303, "/me?toast=template-deleted");
 	}
 };

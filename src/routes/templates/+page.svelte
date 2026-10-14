@@ -1,18 +1,18 @@
 <script lang="ts">
-	import TemplateCard from '$lib/components/TemplateCard.svelte';
-	import { CATEGORIES } from '$lib/tiers';
-	import type { PageData } from './$types';
+	import TemplateCard from "$lib/components/TemplateCard.svelte";
+	import { CATEGORIES } from "$lib/tiers";
+	import type { PageData } from "./$types";
 
 	let { data }: { data: PageData } = $props();
 
 	function pageHref(page: number) {
 		const params = new URLSearchParams();
-		if (data.filters.q) params.set('q', data.filters.q);
-		if (data.filters.category) params.set('category', data.filters.category);
-		if (data.filters.sort !== 'popular') params.set('sort', data.filters.sort);
-		if (page > 1) params.set('page', String(page));
+		if (data.filters.q) params.set("q", data.filters.q);
+		if (data.filters.category) params.set("category", data.filters.category);
+		if (data.filters.sort !== "popular") params.set("sort", data.filters.sort);
+		if (page > 1) params.set("page", String(page));
 		const s = params.toString();
-		return s ? `?${s}` : '?';
+		return s ? `?${s}` : "?";
 	}
 </script>
 
@@ -42,7 +42,7 @@
 	<button class="btn" type="submit">Search</button>
 </form>
 
-<p class="muted">{data.total} {data.total === 1 ? 'template' : 'templates'}</p>
+<p class="muted">{data.total} {data.total === 1 ? "template" : "templates"}</p>
 
 {#if data.templates.length}
 	<div class="card-grid">
@@ -59,9 +59,15 @@
 
 {#if data.pageCount > 1}
 	<nav class="pager" aria-label="Pages">
-		{#if data.page > 1}<a class="btn btn-secondary btn-small" href={pageHref(data.page - 1)}>← Previous</a>{/if}
+		{#if data.page > 1}<a
+				class="btn btn-secondary btn-small"
+				href={pageHref(data.page - 1)}>← Previous</a
+			>{/if}
 		<span class="muted">Page {data.page} of {data.pageCount}</span>
-		{#if data.page < data.pageCount}<a class="btn btn-secondary btn-small" href={pageHref(data.page + 1)}>Next →</a>{/if}
+		{#if data.page < data.pageCount}<a
+				class="btn btn-secondary btn-small"
+				href={pageHref(data.page + 1)}>Next →</a
+			>{/if}
 	</nav>
 {/if}
 

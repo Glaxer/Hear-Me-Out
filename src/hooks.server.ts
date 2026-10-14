@@ -1,21 +1,28 @@
-import { createServerClient } from '@supabase/ssr';
-import { redirect, type Handle } from '@sveltejs/kit';
-import { sequence } from '@sveltejs/kit/hooks';
-import { PUBLIC_SUPABASE_ANON_KEY, PUBLIC_SUPABASE_URL } from '$env/static/public';
-import { needsUsername } from '$lib/server/auth';
+import { createServerClient } from "@supabase/ssr";
+import { redirect, type Handle } from "@sveltejs/kit";
+import { sequence } from "@sveltejs/kit/hooks";
+import {
+	PUBLIC_SUPABASE_ANON_KEY,
+	PUBLIC_SUPABASE_URL
+} from "$env/static/public";
+import { needsUsername } from "$lib/server/auth";
 
 /** Creates a Supabase client per request that reads and writes the auth cookies. */
 const supabase: Handle = async ({ event, resolve }) => {
-	event.locals.supabase = createServerClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
-		cookies: {
-			getAll: () => event.cookies.getAll(),
-			setAll: (cookiesToSet) => {
-				cookiesToSet.forEach(({ name, value, options }) => {
-					event.cookies.set(name, value, { ...options, path: '/' });
-				});
+	event.locals.supabase = createServerClient(
+		PUBLIC_SUPABASE_URL,
+		PUBLIC_SUPABASE_ANON_KEY,
+		{
+			cookies: {
+				getAll: () => event.cookies.getAll(),
+				setAll: (cookiesToSet) => {
+					cookiesToSet.forEach(({ name, value, options }) => {
+						event.cookies.set(name, value, { ...options, path: "/" });
+					});
+				}
 			}
 		}
-	});
+	);
 
 	/**
 	 * The session from getSession() comes straight from the cookie and isn't verified, so we only
@@ -37,7 +44,7 @@ const supabase: Handle = async ({ event, resolve }) => {
 
 	return resolve(event, {
 		filterSerializedResponseHeaders: (name) =>
-			name === 'content-range' || name === 'x-supabase-api-version'
+			name === "content-range" || name === "x-supabase-api-version"
 	});
 };
 
@@ -49,8 +56,8 @@ const supabase: Handle = async ({ event, resolve }) => {
 const authCallback: Handle = async ({ event, resolve }) => {
 	const { url } = event;
 	if (
-		url.pathname !== '/auth/confirm' &&
-		(url.searchParams.has('code') || url.searchParams.has('token_hash'))
+		url.pathname !== "/auth/confirm" &&
+		(url.searchParams.has("code") || url.searchParams.has("token_hash"))
 	) {
 		redirect(303, `/auth/confirm${url.search}`);
 	}
@@ -58,7 +65,7 @@ const authCallback: Handle = async ({ event, resolve }) => {
 };
 
 /** Pages that require a signed-in user. */
-const PROTECTED = ['/templates/new', '/me', '/welcome'];
+const PROTECTED = ["/templates/new", "/me", "/welcome"];
 const PROTECTED_PATTERNS = [
 	/^\/lists\/?$/, // your own lists (single lists stay shareable)
 	/^\/templates\/[^/]+\/edit$/, // (ranking works without an account; saving asks to log in)
@@ -71,16 +78,28 @@ const authGuard: Handle = async ({ event, resolve }) => {
 
 	const path = event.url.pathname;
 	const needsAuth =
-		PROTECTED.some((p) => path.startsWith(p)) || PROTECTED_PATTERNS.some((r) => r.test(path));
+		PROTECTED.some((p) => path.startsWith(p)) ||
+		PROTECTED_PATTERNS.some((r) => r.test(path));
 
 	if (needsAuth && !user) {
-		redirect(303, `/login?redirectTo=${encodeURIComponent(path + event.url.search)}`);
+		redirect(
+			303,
+			`/login?redirectTo=${encodeURIComponent(path + event.url.search)}`
+		);
 	}
 
 	// New Google/Discord accounts pick a username before they can make or edit anything
 	// (only checked on these pages, so browsing costs no extra database call)
-	if (needsAuth && user && path !== '/welcome' && (await needsUsername(event.locals.supabase, user.id))) {
-		redirect(303, `/welcome?next=${encodeURIComponent(path + event.url.search)}`);
+	if (
+		needsAuth &&
+		user &&
+		path !== "/welcome" &&
+		(await needsUsername(event.locals.supabase, user.id))
+	) {
+		redirect(
+			303,
+			`/welcome?next=${encodeURIComponent(path + event.url.search)}`
+		);
 	}
 
 	return resolve(event);

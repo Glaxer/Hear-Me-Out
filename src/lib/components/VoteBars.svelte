@@ -1,9 +1,10 @@
 <script lang="ts">
-	import TierLabel from './TierLabel.svelte';
-	import type { Tier } from '$lib/types';
+	import TierLabel from "./TierLabel.svelte";
+	import type { Tier } from "$lib/types";
 
 	/** How many people put an item in each tier, as horizontal bars. */
-	let { tiers, distribution }: { tiers: Tier[]; distribution: number[] } = $props();
+	let { tiers, distribution }: { tiers: Tier[]; distribution: number[] } =
+		$props();
 	const max = $derived(Math.max(1, ...distribution));
 </script>
 
@@ -12,7 +13,11 @@
 		<li>
 			<div class="label"><TierLabel {tier} compact /></div>
 			<div class="track">
-				<span class="bar" style:width="{(distribution[i] / max) * 100}%" style:background={tier.color}></span>
+				<span
+					class="bar"
+					style:width="{(distribution[i] / max) * 100}%"
+					style:background={tier.color}
+				></span>
 			</div>
 			<span class="count">{distribution[i]}</span>
 		</li>

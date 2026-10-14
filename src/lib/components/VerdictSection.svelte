@@ -1,13 +1,13 @@
 <script lang="ts">
-	import { tick } from 'svelte';
-	import ItemTile from './ItemTile.svelte';
-	import StackedVotes from './StackedVotes.svelte';
-	import TierListView from './TierListView.svelte';
-	import VoteBars from './VoteBars.svelte';
-	import { imageUrl } from '$lib/images';
-	import { textOn } from '$lib/tiers';
-	import type { TemplateItem } from '$lib/types';
-	import type { Verdict } from '$lib/verdict';
+	import { tick } from "svelte";
+	import ItemTile from "./ItemTile.svelte";
+	import StackedVotes from "./StackedVotes.svelte";
+	import TierListView from "./TierListView.svelte";
+	import VoteBars from "./VoteBars.svelte";
+	import { imageUrl } from "$lib/images";
+	import { textOn } from "$lib/tiers";
+	import type { TemplateItem } from "$lib/types";
+	import type { Verdict } from "$lib/verdict";
 
 	let {
 		status,
@@ -18,7 +18,7 @@
 		templateId,
 		loggedIn
 	}: {
-		status: 'locked' | 'waiting' | 'ready';
+		status: "locked" | "waiting" | "ready";
 		verdict: Verdict | null;
 		items: TemplateItem[];
 		rankingCount: number;
@@ -31,11 +31,15 @@
 	// Anyone can rank; saving it (needed to see the verdict) asks people to log in
 	const rankHref = $derived(`/templates/${templateId}/rank`);
 	const needed = $derived(Math.max(0, minRankings - rankingCount));
-	const people = (n: number) => `${n} ${n === 1 ? 'ranking' : 'rankings'}`;
+	const people = (n: number) => `${n} ${n === 1 ? "ranking" : "rankings"}`;
 
 	let selectedId = $state<string | null>(null);
 	let detailEl = $state<HTMLElement>();
-	const selected = $derived(selectedId && verdict?.stats[selectedId] ? { item: byId.get(selectedId), stats: verdict.stats[selectedId] } : null);
+	const selected = $derived(
+		selectedId && verdict?.stats[selectedId]
+			? { item: byId.get(selectedId), stats: verdict.stats[selectedId] }
+			: null
+	);
 
 	function tierOf(index: number) {
 		return verdict!.tiers[index];
@@ -43,9 +47,9 @@
 
 	function tooltipFor(id: string) {
 		const s = verdict?.stats[id];
-		const label = byId.get(id)?.label ?? '';
+		const label = byId.get(id)?.label ?? "";
 		if (!s) return label;
-		return `${label}: average ${tierOf(s.tierIndex).label} · ${s.votes} ${s.votes === 1 ? 'vote' : 'votes'}`;
+		return `${label}: average ${tierOf(s.tierIndex).label} · ${s.votes} ${s.votes === 1 ? "vote" : "votes"}`;
 	}
 
 	/** e.g. "3 said S · 2 said D": the two extremes people picked. */
@@ -59,22 +63,23 @@
 	async function select(id: string) {
 		selectedId = selectedId === id ? null : id;
 		await tick();
-		if (selectedId) detailEl?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+		if (selectedId)
+			detailEl?.scrollIntoView({ behavior: "smooth", block: "nearest" });
 	}
 </script>
 
 <section class="verdict section" aria-labelledby="verdict-heading">
 	<div class="section-head">
 		<h2 id="verdict-heading">The verdict</h2>
-		{#if status === 'ready' && verdict}
+		{#if status === "ready" && verdict}
 			<span class="muted">Based on {people(verdict.listCount)}</span>
 		{/if}
 	</div>
 
-	{#if status === 'locked'}
+	{#if status === "locked"}
 		<div class="card locked">
 			<div class="ghost" aria-hidden="true">
-				{#each ['#ff7f7f', '#ffbf7f', '#ffdf7f', '#ffff7f'] as c, i (c)}
+				{#each ["#ff7f7f", "#ffbf7f", "#ffdf7f", "#ffff7f"] as c, i (c)}
 					<div class="ghost-row">
 						<span style:background={c}></span>
 						{#each Array(4 - i) as _, j (j)}<i></i>{/each}
@@ -88,26 +93,37 @@
 					{#if rankingCount === 0}
 						Nobody has ranked this yet. Be the first!
 					{:else}
-						{people(rankingCount)} so far. Make your own ranking to see the verdict. It stays hidden
-						until then, so it can’t sway your picks.
+						{people(rankingCount)} so far. Make your own ranking to see the verdict.
+						It stays hidden until then, so it can’t sway your picks.
 					{/if}
 				</p>
 				<a class="btn" href={rankHref}>Rank it to see the verdict</a>
 			</div>
 		</div>
-	{:else if status === 'waiting'}
+	{:else if status === "waiting"}
 		<div class="card waiting">
 			<h3>Thanks for ranking!</h3>
 			<p class="muted">
-				The verdict appears once {minRankings} people have ranked this. {people(rankingCount)} so far,
+				The verdict appears once {minRankings} people have ranked this. {people(
+					rankingCount
+				)} so far,
 				{needed} more needed. Share the link above to get more opinions.
 			</p>
-			<div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax={minRankings} aria-valuenow={rankingCount}>
+			<div
+				class="progress"
+				role="progressbar"
+				aria-valuemin="0"
+				aria-valuemax={minRankings}
+				aria-valuenow={rankingCount}
+			>
 				<span style:width="{(rankingCount / minRankings) * 100}%"></span>
 			</div>
 		</div>
 	{:else if verdict}
-		<p class="muted hint">Every item placed by its average across all rankings. Click one to see how people voted.</p>
+		<p class="muted hint">
+			Every item placed by its average across all rankings. Click one to see how
+			people voted.
+		</p>
 		<TierListView
 			tiers={verdict.tiers}
 			placements={verdict.placements}
@@ -123,7 +139,12 @@
 			<div class="card detail" bind:this={detailEl}>
 				<div class="detail-media">
 					{#if imageUrl(selected.item.full_image_path ?? selected.item.image_path)}
-						<img src={imageUrl(selected.item.full_image_path ?? selected.item.image_path)} alt={selected.item.label} />
+						<img
+							src={imageUrl(
+								selected.item.full_image_path ?? selected.item.image_path
+							)}
+							alt={selected.item.label}
+						/>
 					{:else}
 						<div class="item-tile big"><ItemTile item={selected.item} /></div>
 					{/if}
@@ -131,13 +152,26 @@
 				<div class="detail-body">
 					<div class="detail-head">
 						<h3>{selected.item.label}</h3>
-						<button type="button" class="icon-button" onclick={() => (selectedId = null)} aria-label="Close">✕</button>
+						<button
+							type="button"
+							class="icon-button"
+							onclick={() => (selectedId = null)}
+							aria-label="Close">✕</button
+						>
 					</div>
 					<p class="avg">
-						<span class="badge" style:background={avgTier.color} style:color={textOn(avgTier.color)}>{avgTier.label}</span>
-						on average, from {selected.stats.votes} {selected.stats.votes === 1 ? 'vote' : 'votes'}
+						<span
+							class="badge"
+							style:background={avgTier.color}
+							style:color={textOn(avgTier.color)}>{avgTier.label}</span
+						>
+						on average, from {selected.stats.votes}
+						{selected.stats.votes === 1 ? "vote" : "votes"}
 					</p>
-					<VoteBars tiers={verdict.tiers} distribution={selected.stats.distribution} />
+					<VoteBars
+						tiers={verdict.tiers}
+						distribution={selected.stats.distribution}
+					/>
 				</div>
 			</div>
 		{/if}
@@ -151,12 +185,19 @@
 						{@const item = byId.get(id)}
 						{#if item}
 							<li>
-								<button type="button" class="divisive-row" onclick={() => select(id)}>
+								<button
+									type="button"
+									class="divisive-row"
+									onclick={() => select(id)}
+								>
 									<span class="item-tile small"><ItemTile {item} /></span>
 									<span class="divisive-text">
 										<strong>{item.label}</strong>
 										<span class="muted">{splitSummary(id)}</span>
-										<StackedVotes tiers={verdict.tiers} distribution={verdict.stats[id].distribution} />
+										<StackedVotes
+											tiers={verdict.tiers}
+											distribution={verdict.stats[id].distribution}
+										/>
 									</span>
 								</button>
 							</li>

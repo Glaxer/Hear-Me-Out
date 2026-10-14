@@ -1,18 +1,22 @@
 <script lang="ts">
-	import TemplateForm from '$lib/components/TemplateForm.svelte';
-	import { fromTemplateItem } from '$lib/items';
-	import type { ActionData, PageData } from './$types';
+	import TemplateForm from "$lib/components/TemplateForm.svelte";
+	import { fromTemplateItem } from "$lib/items";
+	import type { ActionData, PageData } from "./$types";
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 </script>
 
-<svelte:head><title>Edit: {data.template.title} · Hear Me Out</title></svelte:head>
+<svelte:head
+	><title>Edit: {data.template.title} · Hear Me Out</title></svelte:head
+>
 
-<p class="muted back"><a href="/templates/{data.template.id}">← {data.template.title}</a></p>
+<p class="muted back">
+	<a href="/templates/{data.template.id}">← {data.template.title}</a>
+</p>
 <h1>Edit template</h1>
 <p class="muted intro">
-	New items show up as unranked in rankings people have already made. Removing an item also
-	removes it from those rankings.
+	New items show up as unranked in rankings people have already made. Removing
+	an item also removes it from those rankings.
 </p>
 
 {#if data.user}

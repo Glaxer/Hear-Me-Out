@@ -1,13 +1,23 @@
 <script lang="ts">
-	import { dismissToast, toasts } from '$lib/toast.svelte';
+	import { dismissToast, toasts } from "$lib/toast.svelte";
 </script>
 
 <div class="toaster" aria-live="polite" aria-atomic="false">
 	{#each toasts as t (t.id)}
-		<div class="toast toast-{t.kind}" role={t.kind === 'error' ? 'alert' : 'status'}>
-			<span class="icon" aria-hidden="true">{t.kind === 'error' ? '!' : t.kind === 'info' ? 'i' : '✓'}</span>
+		<div
+			class="toast toast-{t.kind}"
+			role={t.kind === "error" ? "alert" : "status"}
+		>
+			<span class="icon" aria-hidden="true"
+				>{t.kind === "error" ? "!" : t.kind === "info" ? "i" : "✓"}</span
+			>
 			<p>{t.message}</p>
-			<button type="button" class="close" onclick={() => dismissToast(t.id)} aria-label="Dismiss">✕</button>
+			<button
+				type="button"
+				class="close"
+				onclick={() => dismissToast(t.id)}
+				aria-label="Dismiss">✕</button
+			>
 		</div>
 	{/each}
 </div>

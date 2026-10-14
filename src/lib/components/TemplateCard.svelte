@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { imageUrl } from '$lib/images';
-	import type { Template } from '$lib/types';
+	import { imageUrl } from "$lib/images";
+	import type { Template } from "$lib/types";
 
 	let {
 		template,
@@ -16,7 +16,9 @@
 		{#each previewItems.slice(0, 4) as item, i (i)}
 			{@const src = imageUrl(item.image_path)}
 			<div class="preview-cell">
-				{#if src}<img src={src} alt="" loading="lazy" />{:else}<span>{item.label}</span>{/if}
+				{#if src}<img {src} alt="" loading="lazy" />{:else}<span
+						>{item.label}</span
+					>{/if}
 			</div>
 		{:else}
 			<div class="preview-empty">
@@ -31,7 +33,7 @@
 		<span class="chip">{template.category}</span>
 		<span class="muted">
 			{template.list_count}
-			{template.list_count === 1 ? 'list' : 'lists'}
+			{template.list_count === 1 ? "list" : "lists"}
 		</span>
 	</div>
 	{#if template.profiles?.username}

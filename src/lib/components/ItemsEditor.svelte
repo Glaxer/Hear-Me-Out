@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { MAX_ITEMS, newItem, type EditableItem } from '$lib/items';
-	import { toast } from '$lib/toast.svelte';
-	import { ImageError, labelFromFilename, processImage } from '$lib/upload';
+	import { MAX_ITEMS, newItem, type EditableItem } from "$lib/items";
+	import { toast } from "$lib/toast.svelte";
+	import { ImageError, labelFromFilename, processImage } from "$lib/upload";
 
 	/** Add, rename, re-image and remove template items. */
 	let { items = $bindable() }: { items: EditableItem[] } = $props();
@@ -9,8 +9,8 @@
 	let dragging = $state(false);
 	let processing = $state<{ done: number; total: number } | null>(null);
 	let problems = $state<string[]>([]);
-	let textLabel = $state('');
-	let bulkText = $state('');
+	let textLabel = $state("");
+	let bulkText = $state("");
 	let fileInput: HTMLInputElement;
 
 	const spaceLeft = $derived(MAX_ITEMS - items.length);
@@ -23,7 +23,9 @@
 		let accepted = files;
 		if (files.length > spaceLeft) {
 			accepted = files.slice(0, Math.max(0, spaceLeft));
-			problems.push(`Only ${MAX_ITEMS} items fit in a template, so ${files.length - accepted.length} file(s) were skipped.`);
+			problems.push(
+				`Only ${MAX_ITEMS} items fit in a template, so ${files.length - accepted.length} file(s) were skipped.`
+			);
 		}
 
 		processing = { done: 0, total: accepted.length };
@@ -31,24 +33,26 @@
 		for (const file of accepted) {
 			try {
 				const image = await processImage(file);
-				items.push(newItem(labelFromFilename(file.name) || 'Untitled', image));
+				items.push(newItem(labelFromFilename(file.name) || "Untitled", image));
 				added++;
 			} catch (err) {
-				const reason = err instanceof ImageError ? err.message : 'something went wrong';
+				const reason =
+					err instanceof ImageError ? err.message : "something went wrong";
 				problems.push(`${file.name}: ${reason}.`);
 			}
 			processing.done++;
 		}
 		processing = null;
 
-		if (added > 0) toast(`Added ${added} ${added === 1 ? 'item' : 'items'}.`);
-		if (problems.length && added === 0) toast('No images were added. See the details below.', 'error');
+		if (added > 0) toast(`Added ${added} ${added === 1 ? "item" : "items"}.`);
+		if (problems.length && added === 0)
+			toast("No images were added. See the details below.", "error");
 	}
 
 	function onPick(e: Event) {
 		const input = e.currentTarget as HTMLInputElement;
 		const files = Array.from(input.files ?? []);
-		input.value = ''; // allow picking the same files again
+		input.value = ""; // allow picking the same files again
 		addFiles(files);
 	}
 
@@ -61,8 +65,14 @@
 	/** Paste screenshots or copied images straight into the template. */
 	function onPaste(e: ClipboardEvent) {
 		const target = e.target;
-		if (target instanceof Element && target.closest('input[type="text"], textarea')) return; // normal text paste
-		const files = Array.from(e.clipboardData?.files ?? []).filter((f) => f.type.startsWith('image/'));
+		if (
+			target instanceof Element &&
+			target.closest('input[type="text"], textarea')
+		)
+			return; // normal text paste
+		const files = Array.from(e.clipboardData?.files ?? []).filter((f) =>
+			f.type.startsWith("image/")
+		);
 		if (files.length) {
 			e.preventDefault();
 			addFiles(files);
@@ -72,7 +82,7 @@
 	async function replaceImage(item: EditableItem, e: Event) {
 		const input = e.currentTarget as HTMLInputElement;
 		const file = input.files?.[0];
-		input.value = '';
+		input.value = "";
 		if (!file) return;
 		try {
 			const image = await processImage(file);
@@ -83,7 +93,10 @@
 			item.fullImagePath = null;
 			item.preview = URL.createObjectURL(image.thumb);
 		} catch (err) {
-			toast(`${file.name}: ${err instanceof ImageError ? err.message : 'something went wrong'}.`, 'error');
+			toast(
+				`${file.name}: ${err instanceof ImageError ? err.message : "something went wrong"}.`,
+				"error"
+			);
 		}
 	}
 
@@ -105,18 +118,21 @@
 		const label = textLabel.trim().slice(0, 80);
 		if (!label || spaceLeft <= 0) return;
 		items.push(newItem(label));
-		textLabel = '';
+		textLabel = "";
 	}
 
 	function addTextList() {
 		const labels = bulkText
-			.split('\n')
+			.split("\n")
 			.map((l) => l.trim().slice(0, 80))
 			.filter(Boolean)
 			.slice(0, spaceLeft);
 		for (const label of labels) items.push(newItem(label));
-		if (labels.length) toast(`Added ${labels.length} ${labels.length === 1 ? 'item' : 'items'}.`);
-		bulkText = '';
+		if (labels.length)
+			toast(
+				`Added ${labels.length} ${labels.length === 1 ? "item" : "items"}.`
+			);
+		bulkText = "";
 	}
 </script>
 
@@ -132,23 +148,34 @@
 		tabindex="0"
 		aria-label="Add images. Choose files or drop them here."
 		onclick={() => fileInput.click()}
-		onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), fileInput.click())}
+		onkeydown={(e) =>
+			(e.key === "Enter" || e.key === " ") &&
+			(e.preventDefault(), fileInput.click())}
 		ondragenter={(e) => (e.preventDefault(), (dragging = true))}
 		ondragover={(e) => e.preventDefault()}
 		ondragleave={(e) => {
-			if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) dragging = false;
+			if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node))
+				dragging = false;
 		}}
 		ondrop={onDrop}
 	>
 		{#if processing}
 			<strong>Adding images… {processing.done}/{processing.total}</strong>
 			<div class="progress" aria-hidden="true">
-				<span style:width="{(processing.done / processing.total) * 100}%"></span>
+				<span style:width="{(processing.done / processing.total) * 100}%"
+				></span>
 			</div>
 		{:else}
 			<span class="drop-icon" aria-hidden="true">⬆</span>
-			<strong>{dragging ? 'Drop to add them' : 'Drop images here, or click to choose'}</strong>
-			<span class="muted">Pick as many as you like. Each image becomes an item, named after its file.</span>
+			<strong
+				>{dragging
+					? "Drop to add them"
+					: "Drop images here, or click to choose"}</strong
+			>
+			<span class="muted"
+				>Pick as many as you like. Each image becomes an item, named after its
+				file.</span
+			>
 		{/if}
 		<input
 			bind:this={fileInput}
@@ -164,7 +191,11 @@
 		<div class="problems" role="alert">
 			<div class="problems-head">
 				<strong>Some files couldn’t be added</strong>
-				<button type="button" class="link-button" onclick={() => (problems = [])}>Dismiss</button>
+				<button
+					type="button"
+					class="link-button"
+					onclick={() => (problems = [])}>Dismiss</button
+				>
 			</div>
 			<ul>
 				{#each problems as p, i (i)}<li>{p}</li>{/each}
@@ -180,16 +211,28 @@
 			maxlength="80"
 			placeholder="Or type an item name and press Enter"
 			aria-label="New text item"
-			onkeydown={(e) => e.key === 'Enter' && (e.preventDefault(), addText())}
+			onkeydown={(e) => e.key === "Enter" && (e.preventDefault(), addText())}
 		/>
-		<button class="btn btn-secondary btn-small" type="button" onclick={addText} disabled={!textLabel.trim() || spaceLeft <= 0}>
+		<button
+			class="btn btn-secondary btn-small"
+			type="button"
+			onclick={addText}
+			disabled={!textLabel.trim() || spaceLeft <= 0}
+		>
 			Add
 		</button>
 	</div>
 	<details class="bulk">
 		<summary>Paste a list of text items (one per line)</summary>
-		<textarea bind:value={bulkText} placeholder={'Lasagne\nFish fingers\nSalad bar'}></textarea>
-		<button class="btn btn-secondary btn-small" type="button" onclick={addTextList} disabled={!bulkText.trim()}>
+		<textarea
+			bind:value={bulkText}
+			placeholder={"Lasagne\nFish fingers\nSalad bar"}></textarea>
+		<button
+			class="btn btn-secondary btn-small"
+			type="button"
+			onclick={addTextList}
+			disabled={!bulkText.trim()}
+		>
 			Add these
 		</button>
 	</details>
@@ -204,14 +247,24 @@
 		<ul class="item-grid">
 			{#each items as item, i (item.key)}
 				<li class="item-card" class:is-new={!item.id}>
-					<label class="thumb" title={item.preview ? 'Replace image' : 'Add an image'}>
+					<label
+						class="thumb"
+						title={item.preview ? "Replace image" : "Add an image"}
+					>
 						{#if item.preview}
 							<img src={item.preview} alt="" />
 						{:else}
 							<span class="thumb-empty" aria-hidden="true">＋ image</span>
 						{/if}
-						<span class="visually-hidden">{item.preview ? 'Replace' : 'Add'} image for {item.label || `item ${i + 1}`}</span>
-						<input type="file" accept="image/*,.heic,.heif" onchange={(e) => replaceImage(item, e)} />
+						<span class="visually-hidden"
+							>{item.preview ? "Replace" : "Add"} image for {item.label ||
+								`item ${i + 1}`}</span
+						>
+						<input
+							type="file"
+							accept="image/*,.heic,.heif"
+							onchange={(e) => replaceImage(item, e)}
+						/>
 					</label>
 					<input
 						class="label-input"
@@ -224,7 +277,11 @@
 					/>
 					<div class="card-actions">
 						{#if item.preview}
-							<button type="button" class="link-button muted" onclick={() => removeImage(item)}>Remove image</button>
+							<button
+								type="button"
+								class="link-button muted"
+								onclick={() => removeImage(item)}>Remove image</button
+							>
 						{/if}
 						<button
 							type="button"
@@ -237,7 +294,9 @@
 			{/each}
 		</ul>
 	{:else}
-		<p class="empty">No items yet. Add some images or type a few names above.</p>
+		<p class="empty">
+			No items yet. Add some images or type a few names above.
+		</p>
 	{/if}
 </div>
 

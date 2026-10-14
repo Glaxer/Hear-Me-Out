@@ -7,8 +7,8 @@ export interface Tier {
 /** tierId -> ordered list of item ids */
 export type Placements = Record<string, string[]>;
 
-export type TemplateVisibility = 'public' | 'unlisted';
-export type ListVisibility = 'public' | 'unlisted' | 'private';
+export type TemplateVisibility = "public" | "unlisted";
+export type ListVisibility = "public" | "unlisted" | "private";
 
 export interface TemplateItem {
 	id: string;

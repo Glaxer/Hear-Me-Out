@@ -1,6 +1,6 @@
-import { imageUrl } from './images';
-import type { TemplateItem } from './types';
-import { uploadImageBlob } from './upload';
+import { imageUrl } from "./images";
+import type { TemplateItem } from "./types";
+import { uploadImageBlob } from "./upload";
 
 export const MAX_ITEMS = 100;
 
@@ -22,7 +22,10 @@ export interface EditableItem {
 	preview: string | null;
 }
 
-export function newItem(label: string, image: { thumb: Blob; full: Blob } | null = null): EditableItem {
+export function newItem(
+	label: string,
+	image: { thumb: Blob; full: Blob } | null = null
+): EditableItem {
 	return {
 		key: crypto.randomUUID(),
 		id: null,
@@ -61,19 +64,21 @@ export async function appendItemsToForm(
 	const total = items.filter((i) => i.blob).length;
 	let done = 0;
 	for (const item of items) {
-		let path = item.imagePath ?? '';
-		let fullPath = item.fullImagePath ?? '';
+		let path = item.imagePath ?? "";
+		let fullPath = item.fullImagePath ?? "";
 		if (item.blob) {
 			onProgress?.(done, total);
 			[path, fullPath] = await Promise.all([
 				uploadImageBlob(userId, item.blob),
-				item.fullBlob ? uploadImageBlob(userId, item.fullBlob) : Promise.resolve('')
+				item.fullBlob
+					? uploadImageBlob(userId, item.fullBlob)
+					: Promise.resolve("")
 			]);
 			done++;
 		}
-		formData.append('item_id', item.id ?? '');
-		formData.append('item_label', item.label.trim());
-		formData.append('item_image', path);
-		formData.append('item_full_image', fullPath);
+		formData.append("item_id", item.id ?? "");
+		formData.append("item_label", item.label.trim());
+		formData.append("item_image", path);
+		formData.append("item_full_image", fullPath);
 	}
 }

@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
-	import ItemsEditor from './ItemsEditor.svelte';
-	import TierControls from './TierControls.svelte';
-	import { appendItemsToForm, type EditableItem } from '$lib/items';
-	import { CATEGORIES } from '$lib/tiers';
-	import { TEMPLATE_VISIBILITY } from '$lib/visibility';
-	import type { TemplateVisibility, Tier } from '$lib/types';
+	import { enhance } from "$app/forms";
+	import ItemsEditor from "./ItemsEditor.svelte";
+	import TierControls from "./TierControls.svelte";
+	import { appendItemsToForm, type EditableItem } from "$lib/items";
+	import { CATEGORIES } from "$lib/tiers";
+	import { TEMPLATE_VISIBILITY } from "$lib/visibility";
+	import type { TemplateVisibility, Tier } from "$lib/types";
 
 	/** Title, description, category, default tiers and items, shared by "New" and "Edit template". */
 	let {
@@ -39,7 +39,9 @@
 	let submitting = $state(false);
 	// svelte-ignore state_referenced_locally
 	let visibility = $state<TemplateVisibility>(initial.visibility);
-	const visibilityHint = $derived(TEMPLATE_VISIBILITY.find((v) => v.value === visibility)?.hint);
+	const visibilityHint = $derived(
+		TEMPLATE_VISIBILITY.find((v) => v.value === visibility)?.hint
+	);
 </script>
 
 <form
@@ -49,12 +51,12 @@
 		clientError = null;
 		const named = items.filter((i) => i.label.trim());
 		if (named.length !== items.length) {
-			clientError = 'Every item needs a name.';
+			clientError = "Every item needs a name.";
 			cancel();
 			return;
 		}
 		if (items.length < 2) {
-			clientError = 'Add at least two items to rank.';
+			clientError = "Add at least two items to rank.";
 			cancel();
 			return;
 		}
@@ -64,9 +66,9 @@
 			await appendItemsToForm(formData, items, userId, (done, total) => {
 				status = `Uploading images… ${done + 1}/${total}`;
 			});
-			status = 'Saving…';
+			status = "Saving…";
 		} catch (err) {
-			clientError = `Image upload failed: ${err instanceof Error ? err.message : 'unknown error'}`;
+			clientError = `Image upload failed: ${err instanceof Error ? err.message : "unknown error"}`;
 			submitting = false;
 			status = null;
 			cancel();
@@ -86,12 +88,28 @@
 
 	<div class="field">
 		<label for="title">Title</label>
-		<input id="title" name="title" type="text" required maxlength="100" placeholder="Cafeteria food, week 42" value={initial.title} />
+		<input
+			id="title"
+			name="title"
+			type="text"
+			required
+			maxlength="100"
+			placeholder="Cafeteria food, week 42"
+			value={initial.title}
+		/>
 	</div>
 
 	<div class="field">
-		<label for="description">Description <span class="muted">(optional)</span></label>
-		<textarea id="description" name="description" maxlength="500" placeholder="What are we ranking, and why?">{initial.description}</textarea>
+		<label for="description"
+			>Description <span class="muted">(optional)</span></label
+		>
+		<textarea
+			id="description"
+			name="description"
+			maxlength="500"
+			placeholder="What are we ranking, and why?"
+			>{initial.description}</textarea
+		>
 	</div>
 
 	<div class="field">
@@ -104,14 +122,19 @@
 	<div class="field">
 		<label for="visibility">Who can find it?</label>
 		<select id="visibility" name="visibility" bind:value={visibility}>
-			{#each TEMPLATE_VISIBILITY as v (v.value)}<option value={v.value}>{v.label}</option>{/each}
+			{#each TEMPLATE_VISIBILITY as v (v.value)}<option value={v.value}
+					>{v.label}</option
+				>{/each}
 		</select>
 		<small>{visibilityHint}</small>
 	</div>
 
 	<fieldset class="field">
 		<legend class="field-label">Tiers</legend>
-		<small>The starting tiers for new rankings. People can still rename or add tiers in their own ranking.</small>
+		<small
+			>The starting tiers for new rankings. People can still rename or add tiers
+			in their own ranking.</small
+		>
 		<TierControls bind:tiers />
 		<input type="hidden" name="tiers" value={JSON.stringify(tiers)} />
 	</fieldset>
@@ -124,7 +147,7 @@
 	<div class="save-bar">
 		<a href={cancelHref} class="muted">Cancel</a>
 		<button class="btn" type="submit" disabled={submitting}>
-			{submitting ? (status ?? 'Saving…') : submitLabel}
+			{submitting ? (status ?? "Saving…") : submitLabel}
 		</button>
 	</div>
 </form>

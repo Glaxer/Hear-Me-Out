@@ -1,9 +1,9 @@
 <script lang="ts">
-	import ItemTile from './ItemTile.svelte';
-	import TierLabel from './TierLabel.svelte';
-	import { unrankedIds } from '$lib/tiers';
-	import { tooltip } from '$lib/tooltip';
-	import type { Placements, TemplateItem, Tier } from '$lib/types';
+	import ItemTile from "./ItemTile.svelte";
+	import TierLabel from "./TierLabel.svelte";
+	import { unrankedIds } from "$lib/tiers";
+	import { tooltip } from "$lib/tooltip";
+	import type { Placements, TemplateItem, Tier } from "$lib/types";
 
 	let {
 		tiers,
@@ -56,11 +56,18 @@
 				<ItemTile {item} />
 			</button>
 		{:else if itemHref && !compact}
-			<a class="item-tile linked" href={itemHref(id)} use:tooltip={tip} aria-label="{item.label}: view full size">
+			<a
+				class="item-tile linked"
+				href={itemHref(id)}
+				use:tooltip={tip}
+				aria-label="{item.label}: view full size"
+			>
 				<ItemTile {item} />
 			</a>
 		{:else}
-			<div class="item-tile" use:tooltip={compact ? '' : item.label}><ItemTile {item} /></div>
+			<div class="item-tile" use:tooltip={compact ? "" : item.label}>
+				<ItemTile {item} />
+			</div>
 		{/if}
 	{/if}
 {/snippet}

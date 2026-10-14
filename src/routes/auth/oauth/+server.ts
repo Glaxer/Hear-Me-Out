@@ -1,5 +1,5 @@
-import { error, redirect, type RequestHandler } from '@sveltejs/kit';
-import { isOAuthProvider, safeRedirect } from '$lib/server/auth';
+import { error, redirect, type RequestHandler } from "@sveltejs/kit";
+import { isOAuthProvider, safeRedirect } from "$lib/server/auth";
 
 /**
  * "Continue with Google / Discord": asks Supabase for the provider's login page and sends the
@@ -9,23 +9,24 @@ import { isOAuthProvider, safeRedirect } from '$lib/server/auth';
  */
 export const POST: RequestHandler = async ({ request, locals, url }) => {
 	const form = await request.formData();
-	const provider = form.get('provider');
-	if (!isOAuthProvider(provider)) error(400, 'Unknown login option');
+	const provider = form.get("provider");
+	if (!isOAuthProvider(provider)) error(400, "Unknown login option");
 
-	const next = safeRedirect(String(form.get('redirectTo') ?? '') || null, '');
-	const callback = new URL('/auth/confirm', url.origin);
-	callback.searchParams.set('flow', 'oauth');
-	if (next) callback.searchParams.set('next', next);
+	const next = safeRedirect(String(form.get("redirectTo") ?? "") || null, "");
+	const callback = new URL("/auth/confirm", url.origin);
+	callback.searchParams.set("flow", "oauth");
+	if (next) callback.searchParams.set("next", next);
 
-	const { data, error: oauthError } = await locals.supabase.auth.signInWithOAuth({
-		provider,
-		options: {
-			redirectTo: callback.toString(),
-			// Discord only shares the email address when asked for it
-			scopes: provider === 'discord' ? 'identify email' : undefined
-		}
-	});
+	const { data, error: oauthError } =
+		await locals.supabase.auth.signInWithOAuth({
+			provider,
+			options: {
+				redirectTo: callback.toString(),
+				// Discord only shares the email address when asked for it
+				scopes: provider === "discord" ? "identify email" : undefined
+			}
+		});
 
-	if (oauthError || !data.url) redirect(303, '/login?oauthError=1');
+	if (oauthError || !data.url) redirect(303, "/login?oauthError=1");
 	redirect(303, data.url);
 };

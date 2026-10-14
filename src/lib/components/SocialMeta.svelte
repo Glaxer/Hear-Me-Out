@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { page } from '$app/state';
+	import { page } from "$app/state";
 
 	/** Title, description and logo that chat apps and social sites show for a link. */
 	let { title, description }: { title: string; description: string } = $props();

@@ -1,20 +1,20 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
-	import { page } from '$app/state';
-	import ExportImage from '$lib/components/ExportImage.svelte';
-	import HotTakes from '$lib/components/HotTakes.svelte';
-	import ShareLink from '$lib/components/ShareLink.svelte';
-	import SocialMeta from '$lib/components/SocialMeta.svelte';
-	import TierListView from '$lib/components/TierListView.svelte';
-	import { visibilityChip } from '$lib/visibility';
-	import type { PageData } from './$types';
+	import { enhance } from "$app/forms";
+	import { page } from "$app/state";
+	import ExportImage from "$lib/components/ExportImage.svelte";
+	import HotTakes from "$lib/components/HotTakes.svelte";
+	import ShareLink from "$lib/components/ShareLink.svelte";
+	import SocialMeta from "$lib/components/SocialMeta.svelte";
+	import TierListView from "$lib/components/TierListView.svelte";
+	import { visibilityChip } from "$lib/visibility";
+	import type { PageData } from "./$types";
 
 	let { data }: { data: PageData } = $props();
 
 	const isOwner = $derived(data.user?.id === data.list.owner_id);
-	const justSaved = $derived(page.url.searchParams.has('saved'));
+	const justSaved = $derived(page.url.searchParams.has("saved"));
 	const chip = $derived(visibilityChip(data.list.visibility));
-	const author = $derived(data.list.profiles?.username ?? 'Someone');
+	const author = $derived(data.list.profiles?.username ?? "Someone");
 	const rankedCount = $derived(
 		new Set(Object.values(data.list.placements).flat()).size
 	);
@@ -31,15 +31,20 @@
 
 <SocialMeta
 	title={data.list.title}
-	description="{author} ranked {rankedCount} {rankedCount === 1 ? 'item' : 'items'} from “{data.template.title}”. Do you agree? Make your own ranking and compare."
+	description="{author} ranked {rankedCount} {rankedCount === 1
+		? 'item'
+		: 'items'} from “{data.template
+		.title}”. Do you agree? Make your own ranking and compare."
 />
 
 {#if justSaved}
 	<p class="form-success">
-		{#if data.list.visibility === 'public'}
-			Saved! Use “Copy link” to share it. Your ranking also shows on the template page.
-		{:else if data.list.visibility === 'unlisted'}
-			Saved! Only people you send the link to can see this ranking. Use “Copy link” to share it.
+		{#if data.list.visibility === "public"}
+			Saved! Use “Copy link” to share it. Your ranking also shows on the
+			template page.
+		{:else if data.list.visibility === "unlisted"}
+			Saved! Only people you send the link to can see this ranking. Use “Copy
+			link” to share it.
 		{:else}
 			Saved as private. Only you can see it. Edit it to share it.
 		{/if}
@@ -50,23 +55,25 @@
 	<div>
 		<p class="muted crumbs">
 			<a href="/templates/{data.template.id}">{data.template.title}</a> · by
-			{data.list.profiles?.username ?? 'someone'}
+			{data.list.profiles?.username ?? "someone"}
 			{#if chip}<span class="chip">{chip}</span>{/if}
 		</p>
 		<h1>{data.list.title}</h1>
 	</div>
 	<div class="row">
-		{#if data.list.visibility !== 'private'}
+		{#if data.list.visibility !== "private"}
 			<ShareLink url="{page.url.origin}/lists/{data.list.id}" />
 		{/if}
 		<ExportImage options={exportOptions} />
 		{#if isOwner}
-			<a class="btn btn-secondary btn-small" href="/lists/{data.list.id}/edit">Edit</a>
+			<a class="btn btn-secondary btn-small" href="/lists/{data.list.id}/edit"
+				>Edit</a
+			>
 			<form
 				method="POST"
 				action="?/delete"
 				use:enhance={({ cancel }) => {
-					if (!confirm('Delete this tier list?')) cancel();
+					if (!confirm("Delete this tier list?")) cancel();
 				}}
 			>
 				<button class="btn btn-danger btn-small" type="submit">Delete</button>
@@ -88,7 +95,7 @@
 	status={data.hotTakesState}
 	takes={data.hotTakes}
 	items={data.items}
-	whose={data.list.profiles?.username ?? 'this person'}
+	whose={data.list.profiles?.username ?? "this person"}
 	isOwner={data.isOwner}
 	rankHref="/templates/{data.template.id}/rank"
 />
@@ -96,11 +103,15 @@
 <div class="cta card">
 	<div>
 		<h2>Disagree?</h2>
-		<p class="muted">Make your own ranking of {data.template.title} and compare.</p>
+		<p class="muted">
+			Make your own ranking of {data.template.title} and compare.
+		</p>
 	</div>
 	<div class="row">
 		<a class="btn" href="/templates/{data.template.id}/rank">Make my ranking</a>
-		<a class="btn btn-secondary" href="/templates/{data.template.id}">See all rankings</a>
+		<a class="btn btn-secondary" href="/templates/{data.template.id}"
+			>See all rankings</a
+		>
 	</div>
 </div>
 

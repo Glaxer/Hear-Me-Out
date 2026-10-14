@@ -1,4 +1,4 @@
-import type { ListVisibility, Placements, Tier } from './types';
+import type { ListVisibility, Placements, Tier } from "./types";
 
 /**
  * Unsaved rankings, kept in this browser so nothing is lost on refresh or while logging in.
@@ -20,16 +20,27 @@ export function loadRankDraft(templateId: string): RankDraft | null {
 		const raw = localStorage.getItem(key(templateId));
 		if (!raw) return null;
 		const draft = JSON.parse(raw) as RankDraft;
-		if (!Array.isArray(draft?.tiers) || typeof draft?.placements !== 'object' || draft.placements === null) return null;
+		if (
+			!Array.isArray(draft?.tiers) ||
+			typeof draft?.placements !== "object" ||
+			draft.placements === null
+		)
+			return null;
 		return draft;
 	} catch {
 		return null;
 	}
 }
 
-export function saveRankDraft(templateId: string, draft: Omit<RankDraft, 'savedAt'>) {
+export function saveRankDraft(
+	templateId: string,
+	draft: Omit<RankDraft, "savedAt">
+) {
 	try {
-		localStorage.setItem(key(templateId), JSON.stringify({ ...draft, savedAt: Date.now() }));
+		localStorage.setItem(
+			key(templateId),
+			JSON.stringify({ ...draft, savedAt: Date.now() })
+		);
 	} catch {
 		// Storage full or blocked: the ranking still works, it just isn't kept
 	}
@@ -44,4 +55,5 @@ export function clearRankDraft(templateId: string) {
 }
 
 /** True when at least one item has been placed in a tier. */
-export const hasPlacements = (placements: Placements) => Object.values(placements).some((ids) => ids.length > 0);
+export const hasPlacements = (placements: Placements) =>
+	Object.values(placements).some((ids) => ids.length > 0);

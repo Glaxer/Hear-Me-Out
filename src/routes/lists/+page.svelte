@@ -1,11 +1,15 @@
 <script lang="ts">
-	import TierListView from '$lib/components/TierListView.svelte';
-	import { visibilityChip } from '$lib/visibility';
-	import type { PageData } from './$types';
+	import TierListView from "$lib/components/TierListView.svelte";
+	import { visibilityChip } from "$lib/visibility";
+	import type { PageData } from "./$types";
 
 	let { data }: { data: PageData } = $props();
 
-	const dateFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+	const dateFormat = new Intl.DateTimeFormat("en-GB", {
+		day: "numeric",
+		month: "short",
+		year: "numeric"
+	});
 </script>
 
 <svelte:head><title>Tier Lists · Hear Me Out</title></svelte:head>
@@ -27,7 +31,9 @@
 					<div>
 						<h2>{list.title}</h2>
 						<p class="muted meta">
-							{list.templates?.title ?? 'Template'} · {dateFormat.format(new Date(list.updated_at))}
+							{list.templates?.title ?? "Template"} · {dateFormat.format(
+								new Date(list.updated_at)
+							)}
 						</p>
 					</div>
 					{#if chip}<span class="chip">{chip}</span>{/if}

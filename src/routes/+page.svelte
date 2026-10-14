@@ -1,7 +1,7 @@
 <script lang="ts">
-	import SocialMeta from '$lib/components/SocialMeta.svelte';
-	import TemplateCard from '$lib/components/TemplateCard.svelte';
-	import type { PageData } from './$types';
+	import SocialMeta from "$lib/components/SocialMeta.svelte";
+	import TemplateCard from "$lib/components/TemplateCard.svelte";
+	import type { PageData } from "./$types";
 
 	let { data }: { data: PageData } = $props();
 </script>
@@ -15,17 +15,21 @@
 	<div>
 		<h1>Rank it. Share it.<br />See how everyone else ranked it.</h1>
 		<p class="lead muted">
-			Make a tier list in a minute, no account needed. Or make a template, send the link to friends
-			or coworkers, and compare everyone’s rankings on one page.
+			Make a tier list in a minute, no account needed. Or make a template, send
+			the link to friends or coworkers, and compare everyone’s rankings on one
+			page.
 		</p>
 		<div class="row">
 			<a class="btn" href="/quick">Make a quick tier list</a>
 			<a class="btn btn-secondary" href="/templates">Browse templates</a>
-			<a class="btn btn-secondary" href={data.user ? '/templates/new' : '/signup'}>Create a template</a>
+			<a
+				class="btn btn-secondary"
+				href={data.user ? "/templates/new" : "/signup"}>Create a template</a
+			>
 		</div>
 	</div>
 	<div class="hero-art" aria-hidden="true">
-		{#each [['S', '#ff7f7f', 4], ['A', '#ffbf7f', 3], ['B', '#ffdf7f', 2], ['C', '#ffff7f', 1]] as [label, color, n] (label)}
+		{#each [["S", "#ff7f7f", 4], ["A", "#ffbf7f", 3], ["B", "#ffdf7f", 2], ["C", "#ffff7f", 1]] as [label, color, n] (label)}
 			<div class="hero-row">
 				<span class="hero-label" style:background={color}>{label}</span>
 				{#each Array(n) as _, i (i)}<span class="hero-item"></span>{/each}
@@ -58,7 +62,8 @@
 				<li>
 					<a href="/lists/{list.id}">{list.title}</a>
 					<span class="muted">
-						· {list.templates?.title} · by {list.profiles?.username ?? 'someone'}
+						· {list.templates?.title} · by {list.profiles?.username ??
+							"someone"}
 					</span>
 				</li>
 			{/each}

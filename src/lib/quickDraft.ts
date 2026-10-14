@@ -1,4 +1,4 @@
-import type { ListVisibility, Placements, Tier } from './types';
+import type { ListVisibility, Placements, Tier } from "./types";
 
 /**
  * The quick tier list draft, kept in this browser only (one at a time).
@@ -23,9 +23,9 @@ export interface QuickDraft {
 	updatedAt: number;
 }
 
-const DB_NAME = 'hear-me-out';
-const STORE = 'quick';
-const KEY = 'draft';
+const DB_NAME = "hear-me-out";
+const STORE = "quick";
+const KEY = "draft";
 
 function openDb(): Promise<IDBDatabase> {
 	return new Promise((resolve, reject) => {
@@ -36,7 +36,10 @@ function openDb(): Promise<IDBDatabase> {
 	});
 }
 
-async function run<T>(mode: IDBTransactionMode, action: (store: IDBObjectStore) => IDBRequest): Promise<T | null> {
+async function run<T>(
+	mode: IDBTransactionMode,
+	action: (store: IDBObjectStore) => IDBRequest
+): Promise<T | null> {
 	try {
 		const db = await openDb();
 		try {
@@ -54,14 +57,18 @@ async function run<T>(mode: IDBTransactionMode, action: (store: IDBObjectStore) 
 }
 
 export async function loadQuickDraft(): Promise<QuickDraft | null> {
-	const draft = await run<QuickDraft>('readonly', (s) => s.get(KEY));
+	const draft = await run<QuickDraft>("readonly", (s) => s.get(KEY));
 	return draft && Array.isArray(draft.items) ? draft : null;
 }
 
-export async function saveQuickDraft(draft: Omit<QuickDraft, 'updatedAt'>): Promise<void> {
-	await run('readwrite', (s) => s.put({ ...draft, updatedAt: Date.now() }, KEY));
+export async function saveQuickDraft(
+	draft: Omit<QuickDraft, "updatedAt">
+): Promise<void> {
+	await run("readwrite", (s) =>
+		s.put({ ...draft, updatedAt: Date.now() }, KEY)
+	);
 }
 
 export async function clearQuickDraft(): Promise<void> {
-	await run('readwrite', (s) => s.delete(KEY));
+	await run("readwrite", (s) => s.delete(KEY));
 }

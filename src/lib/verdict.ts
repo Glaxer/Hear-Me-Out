@@ -1,4 +1,4 @@
-import type { Placements, Tier } from './types';
+import type { Placements, Tier } from "./types";
 
 /** The verdict only appears once this many rankings count. */
 export const VERDICT_MIN_LISTS = 3;
@@ -53,7 +53,9 @@ export interface HotTake {
 /** Where an item sits in one person's list: 1 = top tier, 0 = bottom tier, null = not ranked. */
 export function scoreIn(list: RankingInput, itemId: string): number | null {
 	const n = list.tiers.length;
-	const index = list.tiers.findIndex((t) => list.placements[t.id]?.includes(itemId));
+	const index = list.tiers.findIndex((t) =>
+		list.placements[t.id]?.includes(itemId)
+	);
 	if (index < 0) return null;
 	return n <= 1 ? 0.5 : 1 - index / (n - 1);
 }
@@ -69,16 +71,23 @@ export function tierIndexFor(score: number, tierCount: number): number {
  * Combines everyone's rankings into one tier list using the template's default tiers.
  * Unranked items don't count as votes. Order inside a tier is by average, best first.
  */
-export function computeVerdict(templateTiers: Tier[], itemIds: string[], lists: RankingInput[]): Verdict {
+export function computeVerdict(
+	templateTiers: Tier[],
+	itemIds: string[],
+	lists: RankingInput[]
+): Verdict {
 	const n = templateTiers.length;
 	const stats: Record<string, ItemStats> = {};
 
 	for (const itemId of itemIds) {
-		const scores = lists.map((l) => scoreIn(l, itemId)).filter((s): s is number => s !== null);
+		const scores = lists
+			.map((l) => scoreIn(l, itemId))
+			.filter((s): s is number => s !== null);
 		if (scores.length === 0) continue;
 
 		const average = scores.reduce((a, b) => a + b, 0) / scores.length;
-		const variance = scores.reduce((a, s) => a + (s - average) ** 2, 0) / scores.length;
+		const variance =
+			scores.reduce((a, s) => a + (s - average) ** 2, 0) / scores.length;
 		const distribution = new Array(n).fill(0);
 		for (const s of scores) distribution[tierIndexFor(s, n)]++;
 
@@ -99,24 +108,40 @@ export function computeVerdict(templateTiers: Tier[], itemIds: string[], lists: 
 	});
 
 	const divisive = Object.keys(stats)
-		.filter((id) => stats[id].votes >= DIVISIVE_MIN_VOTES && stats[id].spread >= DIVISIVE_MIN_SPREAD)
+		.filter(
+			(id) =>
+				stats[id].votes >= DIVISIVE_MIN_VOTES &&
+				stats[id].spread >= DIVISIVE_MIN_SPREAD
+		)
 		.sort((a, b) => stats[b].spread - stats[a].spread)
 		.slice(0, 3);
 
-	return { tiers: templateTiers, placements, stats, listCount: lists.length, divisive };
+	return {
+		tiers: templateTiers,
+		placements,
+		stats,
+		listCount: lists.length,
+		divisive
+	};
 }
 
 /**
  * The (up to) three items where `list` differs most from everyone else's rankings.
  * `others` should not include `list` itself.
  */
-export function computeHotTakes(list: RankingInput, others: RankingInput[], templateTiers: Tier[]): HotTake[] {
+export function computeHotTakes(
+	list: RankingInput,
+	others: RankingInput[],
+	templateTiers: Tier[]
+): HotTake[] {
 	const takes: HotTake[] = [];
 
 	for (const [index, tier] of list.tiers.entries()) {
 		for (const itemId of list.placements[tier.id] ?? []) {
 			const mine = scoreIn(list, itemId);
-			const theirs = others.map((o) => scoreIn(o, itemId)).filter((s): s is number => s !== null);
+			const theirs = others
+				.map((o) => scoreIn(o, itemId))
+				.filter((s): s is number => s !== null);
 			if (mine === null || theirs.length < HOT_TAKE_MIN_OTHER_VOTES) continue;
 
 			const average = theirs.reduce((a, b) => a + b, 0) / theirs.length;
