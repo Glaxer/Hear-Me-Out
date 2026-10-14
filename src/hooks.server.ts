@@ -66,6 +66,7 @@ const authCallback: Handle = async ({ event, resolve }) => {
 /** Pages that require a signed-in user. */
 const PROTECTED = ["/templates/new", "/me"];
 const PROTECTED_PATTERNS = [
+  /^\/lists\/?$/, // your own lists (single lists stay shareable)
   /^\/templates\/[^/]+\/(rank|edit)$/,
   /^\/lists\/[^/]+\/edit$/,
 ];
