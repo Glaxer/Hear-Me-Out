@@ -193,11 +193,22 @@ create policy "users delete own templates" on public.templates
 
 create policy "template items are public" on public.template_items
   for select using (true);
-create policy "template owners manage items" on public.template_items
-  for all using (
+-- One policy per action, so reading items only checks the simple "public" policy above
+create policy "template owners add items" on public.template_items
+  for insert with check (
+    exists (select 1 from public.templates t
+             where t.id = template_id and t.owner_id = (select auth.uid()))
+  );
+create policy "template owners update items" on public.template_items
+  for update using (
     exists (select 1 from public.templates t
              where t.id = template_id and t.owner_id = (select auth.uid()))
   ) with check (
+    exists (select 1 from public.templates t
+             where t.id = template_id and t.owner_id = (select auth.uid()))
+  );
+create policy "template owners delete items" on public.template_items
+  for delete using (
     exists (select 1 from public.templates t
              where t.id = template_id and t.owner_id = (select auth.uid()))
   );
