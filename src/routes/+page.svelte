@@ -1,11 +1,15 @@
 <script lang="ts">
+	import SocialMeta from '$lib/components/SocialMeta.svelte';
 	import TemplateCard from '$lib/components/TemplateCard.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 </script>
 
-<svelte:head><title>Hear Me Out · Make, share and compare tier lists</title></svelte:head>
+<SocialMeta
+	title="Make, share and compare tier lists"
+	description="Rank anything, send the link to friends or coworkers, and see everyone’s rankings side by side."
+/>
 
 <section class="hero">
 	<div>
