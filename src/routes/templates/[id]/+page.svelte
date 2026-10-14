@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import ItemTile from '$lib/components/ItemTile.svelte';
 	import ShareLink from '$lib/components/ShareLink.svelte';
+	import VerdictSection from '$lib/components/VerdictSection.svelte';
 	import { visibilityChip } from '$lib/visibility';
 	import TierListView from '$lib/components/TierListView.svelte';
 	import type { PageData } from './$types';
@@ -54,6 +55,16 @@
 	hint={unlisted
 		? 'This template is hidden from browse and search. Only people with this link can find it.'
 		: 'Anyone with this link can make their own ranking.'}
+/>
+
+<VerdictSection
+	status={data.verdictState}
+	verdict={data.verdict}
+	items={data.items}
+	rankingCount={data.rankingCount}
+	minRankings={data.minRankings}
+	templateId={data.template.id}
+	loggedIn={!!data.user}
 />
 
 <button class="link-button muted show-items" type="button" aria-expanded={showItems} onclick={() => (showItems = !showItems)}>

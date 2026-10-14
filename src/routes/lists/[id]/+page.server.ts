@@ -1,12 +1,30 @@
 import { error, fail, redirect } from '@sveltejs/kit';
-import { isUuid, loadTemplate, loadTierList } from '$lib/server/data';
+import { hasRanked, isUuid, loadCountableRankings, loadTemplate, loadTierList } from '$lib/server/data';
+import { computeHotTakes, type HotTake } from '$lib/verdict';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
 	if (!isUuid(params.id)) error(404, 'Tier list not found');
 	const list = await loadTierList(locals.supabase, params.id);
 	const { template, items } = await loadTemplate(locals.supabase, list.template_id);
-	return { list, template, items };
+
+	// Hottest takes reveal what everyone else thinks, so (like the verdict) they're only
+	// calculated for people who've ranked this template themselves.
+	const isOwner = locals.user?.id === list.owner_id;
+	const canSee = isOwner || (await hasRanked(locals.supabase, template.id, locals.user?.id));
+	let hotTakes: HotTake[] | null = null;
+	let hotTakesState: 'locked' | 'not-enough' | 'ready' = 'locked';
+	if (canSee) {
+		const others = (await loadCountableRankings(locals.supabase, template.id)).filter((l) => l.id !== list.id);
+		if (others.length >= 2) {
+			hotTakes = computeHotTakes(list, others, template.default_tiers);
+			hotTakesState = 'ready';
+		} else {
+			hotTakesState = 'not-enough';
+		}
+	}
+
+	return { list, template, items, hotTakes, hotTakesState, isOwner };
 };
 
 export const actions: Actions = {

@@ -126,6 +126,18 @@ src/
 supabase/schema.sql          Tables, triggers, RLS, storage bucket
 ```
 
+### The verdict (average ranking)
+
+`src/lib/verdict.ts` combines all public and link-only rankings of a template into one tier list:
+
+- Each vote is an item's position in that person's own list: top tier = 1, bottom tier = 0, evenly
+  spaced in between (so lists with different or custom tiers can be compared). Unranked items aren't votes.
+- The average is mapped back onto the template's default tiers. Items are sorted by average within a tier.
+- **Most divisive**: items with 3+ votes and the biggest spread (standard deviation).
+- **Hottest takes** (on a tier list page): the 3 items where that list differs most from everyone else.
+- The verdict shows from 3 rankings, and only to people who've ranked the template themselves, so it can't
+  influence their picks. This is enforced on the server: the numbers are never sent to anyone else.
+
 ### Data model
 
 - **profiles** — username per user (created automatically on sign-up).
@@ -144,8 +156,6 @@ Private tier lists are only visible to their owner.
 
 These are the "later" features from the project description, with a hint on where they'd go:
 
-- **Average ranking per template** — a Postgres view or function that scores each item by tier index
-  across all public lists of a template; show it at the top of `/templates/[id]`.
 - **Comments / reactions** — a `reactions` table keyed on `tier_list_id` + `user_id`.
 - **Export as image** — render `TierListView` to a canvas in the browser (e.g. with `html-to-image`).
 - **Editing templates** — add items to an existing template; existing lists simply show new items as unranked.

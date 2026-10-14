@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { page } from '$app/state';
+	import HotTakes from '$lib/components/HotTakes.svelte';
 	import ShareLink from '$lib/components/ShareLink.svelte';
 	import TierListView from '$lib/components/TierListView.svelte';
 	import { visibilityChip } from '$lib/visibility';
@@ -69,6 +70,15 @@
 	items={data.items}
 	showUnranked
 	itemHref={(itemId) => `/lists/${data.list.id}/items/${itemId}`}
+/>
+
+<HotTakes
+	status={data.hotTakesState}
+	takes={data.hotTakes}
+	items={data.items}
+	whose={data.list.profiles?.username ?? 'this person'}
+	isOwner={data.isOwner}
+	rankHref={data.user ? `/templates/${data.template.id}/rank` : `/login?redirectTo=${encodeURIComponent(`/templates/${data.template.id}/rank`)}`}
 />
 
 <div class="cta card">

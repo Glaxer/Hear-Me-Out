@@ -1,7 +1,8 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { IMAGE_BUCKET } from '$lib/images';
-import { isUuid, loadTemplate } from '$lib/server/data';
+import { isUuid, loadCountableRankings, loadTemplate } from '$lib/server/data';
 import type { TierList } from '$lib/types';
+import { computeVerdict, VERDICT_MIN_LISTS, type Verdict } from '$lib/verdict';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
@@ -18,11 +19,33 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		? query.or(`visibility.eq.public,owner_id.eq.${locals.user.id}`)
 		: query.eq('visibility', 'public');
 	const { data: lists } = await query.order('updated_at', { ascending: false }).limit(60);
+	const shownLists = (lists ?? []) as unknown as TierList[];
+
+	// The verdict is hidden until you've ranked it yourself, so it can't sway your own ranking.
+	// It's only calculated (and sent to the browser) once you're allowed to see it.
+	const counted = await loadCountableRankings(locals.supabase, params.id);
+	const viewerHasRanked = !!locals.user && shownLists.some((l) => l.owner_id === locals.user!.id);
+	let verdict: Verdict | null = null;
+	let verdictState: 'locked' | 'waiting' | 'ready' = 'locked';
+	if (viewerHasRanked) {
+		verdictState = counted.length >= VERDICT_MIN_LISTS ? 'ready' : 'waiting';
+		if (verdictState === 'ready') {
+			verdict = computeVerdict(
+				template.default_tiers,
+				items.map((i) => i.id),
+				counted
+			);
+		}
+	}
 
 	return {
 		template,
 		items,
-		lists: (lists ?? []) as unknown as TierList[]
+		lists: shownLists,
+		verdict,
+		verdictState,
+		rankingCount: counted.length,
+		minRankings: VERDICT_MIN_LISTS
 	};
 };
 

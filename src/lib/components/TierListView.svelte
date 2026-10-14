@@ -11,7 +11,10 @@
 		items,
 		showUnranked = false,
 		compact = false,
-		itemHref
+		itemHref,
+		itemTooltip,
+		onItemSelect,
+		selectedId = null
 	}: {
 		tiers: Tier[];
 		placements: Placements;
@@ -20,6 +23,11 @@
 		compact?: boolean;
 		/** When given, each item links to its full-size view. */
 		itemHref?: (itemId: string) => string;
+		/** Tooltip text per item (defaults to the item's name). */
+		itemTooltip?: (itemId: string) => string;
+		/** When given, items are buttons that call this instead of links. */
+		onItemSelect?: (itemId: string) => void;
+		selectedId?: string | null;
 	} = $props();
 
 	const byId = $derived(new Map(items.map((i) => [i.id, i])));
@@ -34,8 +42,21 @@
 {#snippet tile(id: string)}
 	{@const item = byId.get(id)}
 	{#if item}
-		{#if itemHref && !compact}
-			<a class="item-tile linked" href={itemHref(id)} use:tooltip={item.label} aria-label="{item.label}: view full size">
+		{@const tip = itemTooltip ? itemTooltip(id) : item.label}
+		{#if onItemSelect && !compact}
+			<button
+				type="button"
+				class="item-tile linked"
+				class:selected={selectedId === id}
+				aria-pressed={selectedId === id}
+				aria-label={tip}
+				use:tooltip={tip}
+				onclick={() => onItemSelect(id)}
+			>
+				<ItemTile {item} />
+			</button>
+		{:else if itemHref && !compact}
+			<a class="item-tile linked" href={itemHref(id)} use:tooltip={tip} aria-label="{item.label}: view full size">
 				<ItemTile {item} />
 			</a>
 		{:else}
@@ -97,8 +118,16 @@
 	}
 	.linked {
 		color: inherit;
+		font: inherit;
+		font-size: 0.75rem;
+		font-weight: 600;
 		text-decoration: none;
+		cursor: pointer;
 		transition: transform 0.12s ease;
+	}
+	.linked.selected {
+		outline: 3px solid var(--focus);
+		outline-offset: 1px;
 	}
 	.linked:hover {
 		transform: translateY(-2px);
