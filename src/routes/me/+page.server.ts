@@ -17,7 +17,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.limit(4, { referencedTable: 'template_items' }),
 		locals.supabase
 			.from('tier_lists')
-			.select('id, title, is_public, updated_at, template_id, templates(title)')
+			.select('id, title, visibility, updated_at, template_id, templates(title)')
 			.eq('owner_id', user.id)
 			.order('updated_at', { ascending: false })
 	]);

@@ -9,12 +9,15 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const { template, items } = await loadTemplate(locals.supabase, params.id);
 
 	// Public lists for this template, plus the viewer's own private ones (RLS handles visibility)
-	const { data: lists } = await locals.supabase
+	let query = locals.supabase
 		.from('tier_lists')
-		.select('id, owner_id, title, tiers, placements, is_public, updated_at, profiles(username)')
-		.eq('template_id', params.id)
-		.order('updated_at', { ascending: false })
-		.limit(60);
+		.select('id, owner_id, title, tiers, placements, visibility, updated_at, profiles(username)')
+		.eq('template_id', params.id);
+	// Others' link-only lists stay off this page; your own lists all show
+	query = locals.user
+		? query.or(`visibility.eq.public,owner_id.eq.${locals.user.id}`)
+		: query.eq('visibility', 'public');
+	const { data: lists } = await query.order('updated_at', { ascending: false }).limit(60);
 
 	return {
 		template,
@@ -36,7 +39,9 @@ export const actions: Actions = {
 
 		// Best effort: remove the template's images from storage
 		const ownPrefix = `${locals.user.id}/`;
-		const paths = items.map((i) => i.image_path).filter((p): p is string => !!p && p.startsWith(ownPrefix));
+		const paths = items
+			.flatMap((i) => [i.image_path, i.full_image_path])
+			.filter((p): p is string => !!p && p.startsWith(ownPrefix));
 		if (paths.length) await locals.supabase.storage.from(IMAGE_BUCKET).remove(paths);
 
 		redirect(303, '/me?toast=template-deleted');

@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { page } from '$app/state';
 	import ItemTile from '$lib/components/ItemTile.svelte';
+	import ShareLink from '$lib/components/ShareLink.svelte';
+	import { visibilityChip } from '$lib/visibility';
 	import TierListView from '$lib/components/TierListView.svelte';
 	import type { PageData } from './$types';
 
@@ -8,7 +11,8 @@
 
 	const isOwner = $derived(data.user?.id === data.template.owner_id);
 	const mine = $derived(data.lists.filter((l) => l.owner_id === data.user?.id));
-	const others = $derived(data.lists.filter((l) => l.owner_id !== data.user?.id && l.is_public));
+	const others = $derived(data.lists.filter((l) => l.owner_id !== data.user?.id && l.visibility === 'public'));
+	const unlisted = $derived(data.template.visibility === 'unlisted');
 	let showItems = $state(false);
 </script>
 
@@ -18,6 +22,7 @@
 	<div>
 		<p class="row crumbs">
 			<span class="chip">{data.template.category}</span>
+			{#if unlisted}<span class="chip">Link only</span>{/if}
 			<span class="muted">by {data.template.profiles?.username ?? 'someone'}</span>
 		</p>
 		<h1>{data.template.title}</h1>
@@ -42,7 +47,16 @@
 	</div>
 </div>
 
-<button class="link-button muted" type="button" aria-expanded={showItems} onclick={() => (showItems = !showItems)}>
+<ShareLink
+	url="{page.url.origin}/templates/{data.template.id}"
+	title={data.template.title}
+	label="Invite people to rank this"
+	hint={unlisted
+		? 'This template is hidden from browse and search. Only people with this link can find it.'
+		: 'Anyone with this link can make their own ranking.'}
+/>
+
+<button class="link-button muted show-items" type="button" aria-expanded={showItems} onclick={() => (showItems = !showItems)}>
 	{showItems ? 'Hide' : 'Show'} the {data.items.length} items in this template
 </button>
 {#if showItems}
@@ -61,7 +75,7 @@
 				<a class="card list-card" href="/lists/{list.id}">
 					<div class="list-card-head">
 						<strong>{list.title}</strong>
-						{#if !list.is_public}<span class="chip">Private</span>{/if}
+						{#if visibilityChip(list.visibility)}<span class="chip">{visibilityChip(list.visibility)}</span>{/if}
 					</div>
 					<TierListView tiers={list.tiers} placements={list.placements} items={data.items} compact />
 				</a>
@@ -115,6 +129,9 @@
 	}
 	.actions form {
 		margin: 0;
+	}
+	.show-items {
+		margin-top: 20px;
 	}
 	.items {
 		display: flex;

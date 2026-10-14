@@ -7,6 +7,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		locals.supabase
 			.from('templates')
 			.select(TEMPLATE_CARD_SELECT)
+			.eq('visibility', 'public')
 			.order('list_count', { ascending: false })
 			.order('created_at', { ascending: false })
 			.order('position', { referencedTable: 'template_items' })
@@ -14,8 +15,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.limit(8),
 		locals.supabase
 			.from('tier_lists')
-			.select('id, title, updated_at, profiles(username), templates(title)')
-			.eq('is_public', true)
+			.select('id, title, updated_at, profiles(username), templates!inner(title, visibility)')
+			.eq('visibility', 'public')
+			.eq('templates.visibility', 'public')
 			.order('updated_at', { ascending: false })
 			.limit(8)
 	]);

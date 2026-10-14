@@ -129,11 +129,13 @@ supabase/schema.sql          Tables, triggers, RLS, storage bucket
 ### Data model
 
 - **profiles** — username per user (created automatically on sign-up).
-- **templates** — title, description, category, default tiers, and `list_count`
-  (kept up to date by a trigger, used for "most ranked" sorting).
-- **template_items** — label + optional image path, ordered by `position`.
-- **tier_lists** — a person's ranking: their own copy of the tiers (so they can rename/add tiers)
-  and `placements`, a map of `tierId → [itemId, …]` in order. Items not in any tier are unranked.
+- **templates** — title, description, category, default tiers, `visibility` (`public` or
+  `unlisted`, i.e. link only) and `list_count` (kept up to date by a trigger, used for "most ranked" sorting).
+- **template_items** — label, a 256px thumbnail (`image_path`) and a large version for the
+  image viewer (`full_image_path`), ordered by `position`.
+- **tier_lists** — a person's ranking: their own copy of the tiers (so they can rename/add tiers),
+  `placements`, a map of `tierId → [itemId, …]` in order (items not in any tier are unranked), and
+  `visibility` (`public`, `unlisted` or `private`). `is_public` is derived from it by a trigger.
 
 Security is done with RLS in the database, so even direct API calls can only change your own rows.
 Private tier lists are only visible to their owner.
@@ -144,8 +146,6 @@ These are the "later" features from the project description, with a hint on wher
 
 - **Average ranking per template** — a Postgres view or function that scores each item by tier index
   across all public lists of a template; show it at the top of `/templates/[id]`.
-- **Unlisted / group visibility** — change `is_public` to a `visibility` enum
-  (`public`, `unlisted`, `private`) and update the RLS select policy.
 - **Comments / reactions** — a `reactions` table keyed on `tier_list_id` + `user_id`.
 - **Export as image** — render `TierListView` to a canvas in the browser (e.g. with `html-to-image`).
 - **Editing templates** — add items to an existing template; existing lists simply show new items as unranked.

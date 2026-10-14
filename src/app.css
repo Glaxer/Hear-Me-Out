@@ -390,3 +390,31 @@ textarea {
 		height: 64px;
 	}
 }
+
+/* ---------- Tooltip (see $lib/tooltip.ts) ---------- */
+.hmo-tooltip {
+	position: fixed;
+	z-index: 200;
+	max-width: 260px;
+	padding: 6px 10px;
+	border-radius: 8px;
+	background: var(--ink);
+	color: var(--bg);
+	font-size: 0.8125rem;
+	font-weight: 600;
+	line-height: 1.3;
+	pointer-events: none;
+	box-shadow: var(--shadow);
+	animation: tooltip-in 0.12s ease-out;
+}
+@keyframes tooltip-in {
+	from {
+		opacity: 0;
+		transform: translateY(2px);
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.hmo-tooltip {
+		animation: none;
+	}
+}

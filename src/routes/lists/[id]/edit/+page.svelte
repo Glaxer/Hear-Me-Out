@@ -15,7 +15,7 @@
 	tiers={data.list.tiers}
 	placements={data.list.placements}
 	title={data.list.title}
-	isPublic={data.list.is_public}
+	visibility={data.list.visibility}
 	error={form?.error ?? null}
 	submitLabel="Save changes"
 />

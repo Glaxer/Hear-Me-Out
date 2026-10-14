@@ -17,7 +17,14 @@
 {#if data.user}
 	<TemplateForm
 		userId={data.user.id}
-		initial={{ title: '', description: '', category: 'Food & Drink', tiers: defaultTiers(), items: [] }}
+		initial={{
+			title: '',
+			description: '',
+			category: 'Food & Drink',
+			visibility: 'public',
+			tiers: defaultTiers(),
+			items: []
+		}}
 		error={form?.error ?? null}
 		submitLabel="Save template & start ranking"
 		cancelHref="/templates"

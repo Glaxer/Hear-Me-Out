@@ -1,14 +1,15 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import TierEditor from './TierEditor.svelte';
-	import type { Placements, TemplateItem, Tier } from '$lib/types';
+	import { LIST_VISIBILITY } from '$lib/visibility';
+	import type { ListVisibility, Placements, TemplateItem, Tier } from '$lib/types';
 
 	let {
 		items,
 		tiers,
 		placements = {},
 		title = '',
-		isPublic = true,
+		visibility = 'public',
 		error = null,
 		submitLabel = 'Save & get link'
 	}: {
@@ -16,7 +17,7 @@
 		tiers: Tier[];
 		placements?: Placements;
 		title?: string;
-		isPublic?: boolean;
+		visibility?: ListVisibility;
 		error?: string | null;
 		submitLabel?: string;
 	} = $props();
@@ -43,9 +44,8 @@
 		</div>
 		<div class="field">
 			<label for="visibility">Who can see it?</label>
-			<select id="visibility" name="visibility" value={isPublic ? 'public' : 'private'}>
-				<option value="public">Public — shown on the template page</option>
-				<option value="private">Only me</option>
+			<select id="visibility" name="visibility" value={visibility}>
+				{#each LIST_VISIBILITY as v (v.value)}<option value={v.value}>{v.label}</option>{/each}
 			</select>
 		</div>
 	</div>

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import TemplateCard from '$lib/components/TemplateCard.svelte';
+	import { visibilityChip } from '$lib/visibility';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -28,7 +29,7 @@
 						</p>
 					</div>
 					<div class="row">
-						{#if !list.is_public}<span class="chip">Private</span>{/if}
+						{#if visibilityChip(list.visibility)}<span class="chip">{visibilityChip(list.visibility)}</span>{/if}
 						<a class="btn btn-secondary btn-small" href="/lists/{list.id}/edit">Edit</a>
 					</div>
 				</li>

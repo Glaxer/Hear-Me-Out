@@ -1,29 +1,16 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { page } from '$app/state';
+	import ShareLink from '$lib/components/ShareLink.svelte';
 	import TierListView from '$lib/components/TierListView.svelte';
+	import { visibilityChip } from '$lib/visibility';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 
 	const isOwner = $derived(data.user?.id === data.list.owner_id);
 	const justSaved = $derived(page.url.searchParams.has('saved'));
-	const shareUrl = $derived(`${page.url.origin}/lists/${data.list.id}`);
-	let copied = $state(false);
-
-	async function share() {
-		if (navigator.share) {
-			try {
-				await navigator.share({ title: data.list.title, url: shareUrl });
-				return;
-			} catch {
-				// Share sheet was closed: fall back to copying
-			}
-		}
-		await navigator.clipboard.writeText(shareUrl);
-		copied = true;
-		setTimeout(() => (copied = false), 2000);
-	}
+	const chip = $derived(visibilityChip(data.list.visibility));
 </script>
 
 <svelte:head>
@@ -34,10 +21,12 @@
 
 {#if justSaved}
 	<p class="form-success">
-		{#if data.list.is_public}
-			Saved! Share the link below — anyone with it can see your ranking.
+		{#if data.list.visibility === 'public'}
+			Saved! Share the link below. Your ranking also shows on the template page.
+		{:else if data.list.visibility === 'unlisted'}
+			Saved! Only people you send the link to can see this ranking.
 		{:else}
-			Saved as private — only you can see it. Edit it and choose “Public” to share it.
+			Saved as private. Only you can see it. Edit it to share it.
 		{/if}
 	</p>
 {/if}
@@ -47,7 +36,7 @@
 		<p class="muted crumbs">
 			<a href="/templates/{data.template.id}">{data.template.title}</a> · by
 			{data.list.profiles?.username ?? 'someone'}
-			{#if !data.list.is_public}<span class="chip">Private</span>{/if}
+			{#if chip}<span class="chip">{chip}</span>{/if}
 		</p>
 		<h1>{data.list.title}</h1>
 	</div>
@@ -67,20 +56,25 @@
 	</div>
 </div>
 
-<div class="share card">
-	<label for="share-url" class="field-label">Share link</label>
-	<div class="share-row">
-		<input id="share-url" type="text" readonly value={shareUrl} onfocus={(e) => e.currentTarget.select()} />
-		<button class="btn" type="button" onclick={share}>{copied ? 'Copied!' : 'Share'}</button>
+{#if data.list.visibility !== 'private'}
+	<div class="share-wrap">
+		<ShareLink url="{page.url.origin}/lists/{data.list.id}" title={data.list.title} />
 	</div>
-</div>
+{/if}
 
-<TierListView tiers={data.list.tiers} placements={data.list.placements} items={data.items} showUnranked />
+<p class="muted tip">Click an item to see its picture in full size.</p>
+<TierListView
+	tiers={data.list.tiers}
+	placements={data.list.placements}
+	items={data.items}
+	showUnranked
+	itemHref={(itemId) => `/lists/${data.list.id}/items/${itemId}`}
+/>
 
 <div class="cta card">
 	<div>
 		<h2>Disagree?</h2>
-		<p class="muted">Make your own ranking of {data.template.title} and see everyone’s side by side.</p>
+		<p class="muted">Make your own ranking of {data.template.title} and compare.</p>
 	</div>
 	<div class="row">
 		<a class="btn" href="/templates/{data.template.id}/rank">Make my ranking</a>
@@ -103,15 +97,12 @@
 	.crumbs {
 		margin: 0 0 6px;
 	}
-	.share {
-		display: grid;
-		gap: 8px;
+	.share-wrap {
 		margin-bottom: 20px;
 	}
-	.share-row {
-		display: grid;
-		grid-template-columns: 1fr auto;
-		gap: 8px;
+	.tip {
+		margin: 0 0 8px;
+		font-size: 0.875rem;
 	}
 	.cta {
 		margin-top: 32px;

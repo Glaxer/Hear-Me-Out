@@ -24,7 +24,7 @@ export async function loadTemplate(
 
 	const { data: items } = await supabase
 		.from('template_items')
-		.select('id, label, image_path, position')
+		.select('id, label, image_path, full_image_path, position')
 		.eq('template_id', id)
 		.order('position');
 

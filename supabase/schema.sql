@@ -45,6 +45,8 @@ create table public.templates (
   description text not null default '' check (char_length(description) <= 500),
   category text not null default 'Other',
   default_tiers jsonb not null,
+  -- public: listed in browse/search; unlisted: only reachable with the link
+  visibility text not null default 'public' check (visibility in ('public', 'unlisted')),
   list_count integer not null default 0,
   created_at timestamptz not null default now()
 );
@@ -53,6 +55,7 @@ create index templates_created_at_idx on public.templates (created_at desc);
 create index templates_list_count_idx on public.templates (list_count desc);
 create index templates_category_idx on public.templates (category);
 create index templates_owner_idx on public.templates (owner_id);
+create index templates_visibility_idx on public.templates (visibility, list_count desc);
 
 -- ---------------------------------------------------------------------
 -- Template items: the things inside a template (a dish, a game, ...)
@@ -62,7 +65,8 @@ create table public.template_items (
   id uuid primary key default gen_random_uuid(),
   template_id uuid not null references public.templates (id) on delete cascade,
   label text not null check (char_length(label) between 1 and 80),
-  image_path text,
+  image_path text,          -- 256px thumbnail
+  full_image_path text,     -- large version for the image viewer
   position integer not null default 0
 );
 
@@ -81,6 +85,9 @@ create table public.tier_lists (
   title text not null check (char_length(title) between 1 and 100),
   tiers jsonb not null,
   placements jsonb not null default '{}'::jsonb,
+  -- public: shown on the template page; unlisted: only with the link; private: owner only
+  visibility text not null default 'public' check (visibility in ('public', 'unlisted', 'private')),
+  -- derived from visibility by a trigger: "may people other than the owner open it?"
   is_public boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -105,6 +112,22 @@ create trigger tier_lists_touch
   before update on public.tier_lists
   for each row execute function public.touch_updated_at();
 
+-- is_public follows visibility, so the read policy below stays simple
+create function public.sync_tier_list_is_public()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  new.is_public := new.visibility <> 'private';
+  return new;
+end;
+$$;
+
+create trigger tier_lists_sync_is_public
+  before insert or update of visibility on public.tier_lists
+  for each row execute function public.sync_tier_list_is_public();
+
 -- Keep templates.list_count in sync (counts public lists only), used for "popular" sorting
 create function public.refresh_template_list_count()
 returns trigger
@@ -118,7 +141,7 @@ begin
   update public.templates
      set list_count = (
        select count(*) from public.tier_lists
-        where template_id = t_id and is_public
+        where template_id = t_id and visibility = 'public'
      )
    where id = t_id;
   return null;
@@ -129,10 +152,15 @@ create trigger tier_lists_count
   after insert or update of is_public or delete on public.tier_lists
   for each row execute function public.refresh_template_list_count();
 
+create trigger tier_lists_count_visibility
+  after update of visibility on public.tier_lists
+  for each row execute function public.refresh_template_list_count();
+
 -- Trigger-only functions must not be callable through the API
 revoke execute on function public.handle_new_user() from public, anon, authenticated;
 revoke execute on function public.refresh_template_list_count() from public, anon, authenticated;
 revoke execute on function public.touch_updated_at() from public, anon, authenticated;
+revoke execute on function public.sync_tier_list_is_public() from public, anon, authenticated;
 
 -- ---------------------------------------------------------------------
 -- Row Level Security

@@ -21,7 +21,7 @@ export const actions: Actions = {
 
 		const result = readTemplateForm(await request.formData(), user.id);
 		if (!result.ok) return fail(400, { error: result.error });
-		const { title, description, category, tiers, items } = result.value;
+		const { title, description, category, visibility, tiers, items } = result.value;
 
 		const existingById = new Map(existing.map((i) => [i.id, i]));
 		const kept = items.filter((i) => i.id && existingById.has(i.id));
@@ -30,16 +30,14 @@ export const actions: Actions = {
 		const removed = existing.filter((i) => !keptIds.has(i.id));
 
 		// Images that are no longer used: from removed items, or replaced on kept ones
-		const unusedImages = [
-			...removed.map((i) => i.image_path),
-			...kept
-				.filter((i) => existingById.get(i.id!)!.image_path !== i.image_path)
-				.map((i) => existingById.get(i.id!)!.image_path)
-		].filter((p): p is string => !!p && p.startsWith(`${user.id}/`));
+		const stillUsed = new Set(items.flatMap((i) => [i.image_path, i.full_image_path]));
+		const unusedImages = existing
+			.flatMap((i) => [i.image_path, i.full_image_path])
+			.filter((p): p is string => !!p && !stillUsed.has(p) && p.startsWith(`${user.id}/`));
 
 		const { error: templateError } = await locals.supabase
 			.from('templates')
-			.update({ title, description, category, default_tiers: tiers })
+			.update({ title, description, category, visibility, default_tiers: tiers })
 			.eq('id', params.id);
 		if (templateError) return fail(500, { error: 'Could not save the template. Please try again.' });
 
@@ -53,11 +51,12 @@ export const actions: Actions = {
 
 		if (kept.length) {
 			const { error: err } = await locals.supabase.from('template_items').upsert(
-				kept.map(({ id, label, image_path, position }) => ({
+				kept.map(({ id, label, image_path, full_image_path, position }) => ({
 					id: id!,
 					template_id: params.id,
 					label,
 					image_path,
+					full_image_path,
 					position
 				}))
 			);
@@ -66,10 +65,11 @@ export const actions: Actions = {
 
 		if (added.length) {
 			const { error: err } = await locals.supabase.from('template_items').insert(
-				added.map(({ label, image_path, position }) => ({
+				added.map(({ label, image_path, full_image_path, position }) => ({
 					template_id: params.id,
 					label,
 					image_path,
+					full_image_path,
 					position
 				}))
 			);

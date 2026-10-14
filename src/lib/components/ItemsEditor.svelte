@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { MAX_ITEMS, newItem, type EditableItem } from '$lib/items';
 	import { toast } from '$lib/toast.svelte';
-	import { ImageError, labelFromFilename, shrinkImage } from '$lib/upload';
+	import { ImageError, labelFromFilename, processImage } from '$lib/upload';
 
 	/** Add, rename, re-image and remove template items. */
 	let { items = $bindable() }: { items: EditableItem[] } = $props();
@@ -30,8 +30,8 @@
 		let added = 0;
 		for (const file of accepted) {
 			try {
-				const blob = await shrinkImage(file);
-				items.push(newItem(labelFromFilename(file.name) || 'Untitled', blob));
+				const image = await processImage(file);
+				items.push(newItem(labelFromFilename(file.name) || 'Untitled', image));
 				added++;
 			} catch (err) {
 				const reason = err instanceof ImageError ? err.message : 'something went wrong';
@@ -75,11 +75,13 @@
 		input.value = '';
 		if (!file) return;
 		try {
-			const blob = await shrinkImage(file);
+			const image = await processImage(file);
 			if (item.blob && item.preview) URL.revokeObjectURL(item.preview);
-			item.blob = blob;
+			item.blob = image.thumb;
+			item.fullBlob = image.full;
 			item.imagePath = null;
-			item.preview = URL.createObjectURL(blob);
+			item.fullImagePath = null;
+			item.preview = URL.createObjectURL(image.thumb);
 		} catch (err) {
 			toast(`${file.name}: ${err instanceof ImageError ? err.message : 'something went wrong'}.`, 'error');
 		}
@@ -88,7 +90,9 @@
 	function removeImage(item: EditableItem) {
 		if (item.blob && item.preview) URL.revokeObjectURL(item.preview);
 		item.blob = null;
+		item.fullBlob = null;
 		item.imagePath = null;
+		item.fullImagePath = null;
 		item.preview = null;
 	}
 

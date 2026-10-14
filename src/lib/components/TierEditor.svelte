@@ -2,7 +2,9 @@
 	import { untrack } from 'svelte';
 	import ItemTile from './ItemTile.svelte';
 	import TierControls from './TierControls.svelte';
-	import { textOn, unrankedIds } from '$lib/tiers';
+	import TierLabel from './TierLabel.svelte';
+	import { unrankedIds } from '$lib/tiers';
+	import { tooltip } from '$lib/tooltip';
 	import type { Placements, TemplateItem, Tier } from '$lib/types';
 
 	let {
@@ -139,6 +141,7 @@
 			class:selected={selectedId === id}
 			draggable="true"
 			aria-pressed={selectedId === id}
+			use:tooltip={item.label}
 			aria-label="{item.label}{selectedId === id ? ' (selected)' : ''}"
 			ondragstart={(e) => onDragStart(e, id)}
 			ondragend={onDragEnd}
@@ -189,9 +192,7 @@
 <div class="tier-board">
 	{#each tiers as tier (tier.id)}
 		<div class="tier-row">
-			<div class="tier-label" style:background={tier.color} style:color={textOn(tier.color)}>
-				{tier.label}
-			</div>
+			<TierLabel {tier} />
 			<div
 				class="tier-items drop-zone"
 				class:over={hoverZone === tier.id}
@@ -255,22 +256,12 @@
 	}
 	.tier-row {
 		display: grid;
-		grid-template-columns: 96px 1fr;
+		grid-template-columns: 104px 1fr;
 		min-height: 88px;
 		border-bottom: 1px solid var(--line);
 	}
 	.tier-row:last-child {
 		border-bottom: none;
-	}
-	.tier-label {
-		display: grid;
-		place-items: center;
-		padding: 8px;
-		font-family: var(--font-display);
-		font-weight: 800;
-		font-size: 1.25rem;
-		text-align: center;
-		word-break: break-word;
 	}
 	.tier-items {
 		display: flex;
@@ -333,14 +324,11 @@
 
 	@media (max-width: 560px) {
 		.tier-row {
-			grid-template-columns: 64px 1fr;
+			grid-template-columns: 76px 1fr;
 			min-height: 72px;
 		}
 		.tier-items {
 			min-height: 72px;
-		}
-		.tier-label {
-			font-size: 1rem;
 		}
 		.place-here {
 			width: 64px;

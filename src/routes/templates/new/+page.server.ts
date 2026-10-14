@@ -9,21 +9,22 @@ export const actions: Actions = {
 
 		const result = readTemplateForm(await request.formData(), user.id);
 		if (!result.ok) return fail(400, { error: result.error });
-		const { title, description, category, tiers, items } = result.value;
+		const { title, description, category, visibility, tiers, items } = result.value;
 
 		const { data: template, error } = await locals.supabase
 			.from('templates')
-			.insert({ owner_id: user.id, title, description, category, default_tiers: tiers })
+			.insert({ owner_id: user.id, title, description, category, visibility, default_tiers: tiers })
 			.select('id')
 			.single();
 
 		if (error || !template) return fail(500, { error: 'Could not save the template. Please try again.' });
 
 		const { error: itemsError } = await locals.supabase.from('template_items').insert(
-			items.map(({ label, image_path, position }) => ({
+			items.map(({ label, image_path, full_image_path, position }) => ({
 				template_id: template.id,
 				label,
 				image_path,
+				full_image_path,
 				position
 			}))
 		);

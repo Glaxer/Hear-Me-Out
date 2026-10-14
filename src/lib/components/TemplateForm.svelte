@@ -4,7 +4,8 @@
 	import TierControls from './TierControls.svelte';
 	import { appendItemsToForm, type EditableItem } from '$lib/items';
 	import { CATEGORIES } from '$lib/tiers';
-	import type { Tier } from '$lib/types';
+	import { TEMPLATE_VISIBILITY } from '$lib/visibility';
+	import type { TemplateVisibility, Tier } from '$lib/types';
 
 	/** Title, description, category, default tiers and items, shared by "New" and "Edit template". */
 	let {
@@ -19,6 +20,7 @@
 			title: string;
 			description: string;
 			category: string;
+			visibility: TemplateVisibility;
 			tiers: Tier[];
 			items: EditableItem[];
 		};
@@ -35,6 +37,9 @@
 	let status = $state<string | null>(null);
 	let clientError = $state<string | null>(null);
 	let submitting = $state(false);
+	// svelte-ignore state_referenced_locally
+	let visibility = $state<TemplateVisibility>(initial.visibility);
+	const visibilityHint = $derived(TEMPLATE_VISIBILITY.find((v) => v.value === visibility)?.hint);
 </script>
 
 <form
@@ -94,6 +99,14 @@
 		<select id="category" name="category" required value={initial.category}>
 			{#each CATEGORIES as c (c)}<option value={c}>{c}</option>{/each}
 		</select>
+	</div>
+
+	<div class="field">
+		<label for="visibility">Who can find it?</label>
+		<select id="visibility" name="visibility" bind:value={visibility}>
+			{#each TEMPLATE_VISIBILITY as v (v.value)}<option value={v.value}>{v.label}</option>{/each}
+		</select>
+		<small>{visibilityHint}</small>
 	</div>
 
 	<fieldset class="field">

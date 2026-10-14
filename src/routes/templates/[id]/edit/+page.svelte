@@ -22,6 +22,7 @@
 			title: data.template.title,
 			description: data.template.description,
 			category: data.template.category,
+			visibility: data.template.visibility,
 			tiers: data.template.default_tiers,
 			items: data.items.map(fromTemplateItem)
 		}}

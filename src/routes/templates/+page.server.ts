@@ -14,6 +14,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	let query = locals.supabase
 		.from('templates')
 		.select(TEMPLATE_CARD_SELECT, { count: 'exact' })
+		.eq('visibility', 'public')
 		.order('position', { referencedTable: 'template_items' })
 		.limit(4, { referencedTable: 'template_items' });
 

@@ -1,6 +1,8 @@
 <script lang="ts">
 	import ItemTile from './ItemTile.svelte';
-	import { textOn, unrankedIds } from '$lib/tiers';
+	import TierLabel from './TierLabel.svelte';
+	import { unrankedIds } from '$lib/tiers';
+	import { tooltip } from '$lib/tooltip';
 	import type { Placements, TemplateItem, Tier } from '$lib/types';
 
 	let {
@@ -8,13 +10,16 @@
 		placements,
 		items,
 		showUnranked = false,
-		compact = false
+		compact = false,
+		itemHref
 	}: {
 		tiers: Tier[];
 		placements: Placements;
 		items: TemplateItem[];
 		showUnranked?: boolean;
 		compact?: boolean;
+		/** When given, each item links to its full-size view. */
+		itemHref?: (itemId: string) => string;
 	} = $props();
 
 	const byId = $derived(new Map(items.map((i) => [i.id, i])));
@@ -26,18 +31,26 @@
 	);
 </script>
 
+{#snippet tile(id: string)}
+	{@const item = byId.get(id)}
+	{#if item}
+		{#if itemHref && !compact}
+			<a class="item-tile linked" href={itemHref(id)} use:tooltip={item.label} aria-label="{item.label}: view full size">
+				<ItemTile {item} />
+			</a>
+		{:else}
+			<div class="item-tile" use:tooltip={compact ? '' : item.label}><ItemTile {item} /></div>
+		{/if}
+	{/if}
+{/snippet}
+
 <div class="tier-board" class:compact>
 	{#each tiers as tier (tier.id)}
 		<div class="tier-row">
-			<div class="tier-label" style:background={tier.color} style:color={textOn(tier.color)}>
-				{tier.label}
-			</div>
+			<TierLabel {tier} {compact} />
 			<div class="tier-items">
 				{#each placements[tier.id] ?? [] as id (id)}
-					{@const item = byId.get(id)}
-					{#if item}
-						<div class="item-tile"><ItemTile {item} /></div>
-					{/if}
+					{@render tile(id)}
 				{/each}
 			</div>
 		</div>
@@ -49,10 +62,7 @@
 		<h3>Not ranked</h3>
 		<div class="tier-items">
 			{#each unranked as id (id)}
-				{@const item = byId.get(id)}
-				{#if item}
-					<div class="item-tile"><ItemTile {item} /></div>
-				{/if}
+				{@render tile(id)}
 			{/each}
 		</div>
 	</div>
@@ -68,22 +78,12 @@
 	}
 	.tier-row {
 		display: grid;
-		grid-template-columns: 96px 1fr;
+		grid-template-columns: 104px 1fr;
 		min-height: 88px;
 		border-bottom: 1px solid var(--line);
 	}
 	.tier-row:last-child {
 		border-bottom: none;
-	}
-	.tier-label {
-		display: grid;
-		place-items: center;
-		padding: 8px;
-		font-family: var(--font-display);
-		font-weight: 800;
-		font-size: 1.25rem;
-		text-align: center;
-		word-break: break-word;
 	}
 	.tier-items {
 		display: flex;
@@ -95,14 +95,20 @@
 	.unranked {
 		margin-top: 20px;
 	}
+	.linked {
+		color: inherit;
+		text-decoration: none;
+		transition: transform 0.12s ease;
+	}
+	.linked:hover {
+		transform: translateY(-2px);
+		outline: 2px solid var(--ink);
+		outline-offset: 1px;
+	}
 
 	.compact .tier-row {
-		grid-template-columns: 44px 1fr;
+		grid-template-columns: 52px 1fr;
 		min-height: 36px;
-	}
-	.compact .tier-label {
-		font-size: 0.875rem;
-		padding: 2px;
 	}
 	.compact .tier-items {
 		gap: 2px;
@@ -120,11 +126,11 @@
 
 	@media (max-width: 560px) {
 		.tier-row {
-			grid-template-columns: 64px 1fr;
+			grid-template-columns: 76px 1fr;
 			min-height: 72px;
 		}
-		.tier-label {
-			font-size: 1rem;
+		.compact .tier-row {
+			grid-template-columns: 52px 1fr;
 		}
 	}
 </style>
