@@ -4,6 +4,7 @@
   import { afterNavigate, replaceState } from "$app/navigation";
   import { page } from "$app/state";
   import Toaster from "$lib/components/Toaster.svelte";
+  import { tooltip } from "$lib/tooltip";
   import { REDIRECT_TOASTS, toast } from "$lib/toast.svelte";
   import type { Snippet } from "svelte";
   import type { LayoutData } from "./$types";
@@ -59,13 +60,12 @@
         >
         <a
           href="/me"
-          class="user-link"
+          class="avatar"
           aria-current={current((p) => p === "/me")}
+          aria-label="{data.username ?? 'My page'}: my page"
+          use:tooltip={data.username ?? "My page"}
         >
-          <span class="avatar" aria-hidden="true"
-            >{(data.username ?? "?").slice(0, 1).toUpperCase()}</span
-          >
-          <span class="name">{data.username ?? "My page"}</span>
+          {(data.username ?? "?").slice(0, 2).toUpperCase()}
         </a>
       {:else}
         <a href="/login">Log in</a>

@@ -165,25 +165,9 @@ img {
   text-decoration-thickness: 2px;
   text-underline-offset: 6px;
 }
-.main-nav .user-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-/* Underline only the name, not the avatar circle */
-.main-nav .user-link:hover,
-.main-nav .user-link[aria-current="page"] {
-  text-decoration: none;
-}
-.main-nav .user-link:hover .name,
-.main-nav .user-link[aria-current="page"] .name {
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 6px;
-}
 .main-nav .avatar {
-  width: 28px;
-  height: 28px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   display: grid;
   place-items: center;
@@ -192,6 +176,17 @@ img {
   font-family: var(--font-display);
   font-weight: 800;
   font-size: 0.875rem;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  transition: box-shadow 0.12s ease;
+}
+/* A ring instead of an underline for the avatar */
+.main-nav .avatar:hover,
+.main-nav .avatar[aria-current="page"] {
+  text-decoration: none;
+  box-shadow:
+    0 0 0 2px var(--bg),
+    0 0 0 4px var(--ink);
 }
 
 .site-footer {

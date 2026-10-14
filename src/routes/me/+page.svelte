@@ -19,7 +19,7 @@
 <div class="account card">
   <div class="who">
     <span class="avatar" aria-hidden="true"
-      >{(data.username ?? "?").slice(0, 1).toUpperCase()}</span
+      >{(data.username ?? "?").slice(0, 2).toUpperCase()}</span
     >
     <div>
       <h1>{data.username ?? "My page"}</h1>
@@ -113,7 +113,8 @@
     color: #111;
     font-family: var(--font-display);
     font-weight: 800;
-    font-size: 1.5rem;
+    font-size: 1.25rem;
+    letter-spacing: 0.02em;
     flex: none;
   }
   .lists {
