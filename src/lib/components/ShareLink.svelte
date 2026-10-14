@@ -1,46 +1,105 @@
 <script lang="ts">
-	import { toast } from '$lib/toast.svelte';
+  import { toast } from "$lib/toast.svelte";
 
-	/** A read-only link with a Share/Copy button. */
-	let { url, title, label = 'Share link', hint = '' }: { url: string; title: string; label?: string; hint?: string } = $props();
+  /**
+   * A "Copy link" button. `variant="card"` wraps it with a heading and hint text.
+   */
+  let {
+    url,
+    label = "Copy link",
+    heading = "",
+    hint = "",
+    variant = "button",
+  }: {
+    url: string;
+    label?: string;
+    heading?: string;
+    hint?: string;
+    variant?: "button" | "card";
+  } = $props();
 
-	const id = `share-${Math.random().toString(36).slice(2, 8)}`;
+  let copied = $state(false);
+  let timer: ReturnType<typeof setTimeout> | undefined;
 
-	async function share() {
-		if (navigator.share) {
-			try {
-				await navigator.share({ title, url });
-				return;
-			} catch {
-				// Share sheet closed: fall back to copying
-			}
-		}
-		await navigator.clipboard.writeText(url);
-		toast('Link copied.');
-	}
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      // Older browsers / non-secure pages: fall back to a temporary text field
+      const field = Object.assign(document.createElement("textarea"), {
+        value: url,
+      });
+      field.style.position = "fixed";
+      field.style.opacity = "0";
+      document.body.append(field);
+      field.select();
+      const ok = document.execCommand("copy");
+      field.remove();
+      if (!ok) {
+        toast(
+          "Couldn’t copy the link. Copy it from the address bar instead.",
+          "error",
+        );
+        return;
+      }
+    }
+    toast("Link copied. Paste it anywhere to share.");
+    copied = true;
+    clearTimeout(timer);
+    timer = setTimeout(() => (copied = false), 2000);
+  }
 </script>
 
-<div class="share card">
-	<label for={id} class="field-label">{label}</label>
-	{#if hint}<p class="muted hint">{hint}</p>{/if}
-	<div class="share-row">
-		<input {id} type="text" readonly value={url} onfocus={(e) => e.currentTarget.select()} />
-		<button class="btn" type="button" onclick={share}>Share</button>
-	</div>
-</div>
+{#snippet button(extraClass: string)}
+  <button
+    class="btn {extraClass} copy"
+    class:copied
+    type="button"
+    onclick={copy}
+    aria-live="polite"
+  >
+    <span aria-hidden="true">{copied ? "✓" : "🔗"}</span>
+    {copied ? "Copied!" : label}
+  </button>
+{/snippet}
+
+{#if variant === "card"}
+  <div class="card share-card">
+    <div class="text">
+      {#if heading}<strong>{heading}</strong>{/if}
+      {#if hint}<p class="muted">{hint}</p>{/if}
+    </div>
+    {@render button("")}
+  </div>
+{:else}
+  {@render button("btn-secondary btn-small")}
+{/if}
 
 <style>
-	.share {
-		display: grid;
-		gap: 8px;
-	}
-	.hint {
-		margin: -4px 0 0;
-		font-size: 0.875rem;
-	}
-	.share-row {
-		display: grid;
-		grid-template-columns: 1fr auto;
-		gap: 8px;
-	}
+  .share-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 14px 18px;
+  }
+  .text {
+    display: grid;
+    gap: 2px;
+    flex: 1 1 260px;
+  }
+  .text p {
+    margin: 0;
+    font-size: 0.875rem;
+  }
+  .copy {
+    white-space: nowrap;
+    min-width: 120px;
+  }
+  .copy.copied {
+    background: #2e9b57;
+    border-color: #2e9b57;
+    color: #fff;
+  }
 </style>
