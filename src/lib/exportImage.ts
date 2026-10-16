@@ -15,8 +15,20 @@ export interface ExportOptions {
 	tiers: Tier[];
 	placements: Placements;
 	items: TemplateItem[];
-	/** Shown in the footer, e.g. "hear-me-out-delta.vercel.app/lists/…" */
+	/** Shown in the footer, e.g. "hearmeout.page/lists/…" */
 	link: string;
+	/** Replaces the "Jacob’s ranking of …" line under the title, e.g. "Based on 5 rankings". */
+	byline?: string;
+	/** Extra section under the board: the items people disagree about most (the verdict). */
+	divisive?: DivisiveRow[];
+}
+
+export interface DivisiveRow {
+	item: TemplateItem;
+	/** Votes per tier, top tier first (same order as `tiers`). */
+	distribution: number[];
+	/** e.g. "3 said S · 2 said D" */
+	summary: string;
 }
 
 // Layout (in CSS pixels; the canvas is drawn at 2× for sharpness)
@@ -30,6 +42,11 @@ const ROW_PAD = 6;
 const ROW_GAP = 4;
 const HEADER_H = 112;
 const FOOTER_H = 56;
+// "Most divisive" section
+const DIV_HEAD_H = 76;
+const DIV_TILE = 72;
+const DIV_ROW_GAP = 12;
+const DIV_BAR_H = 22;
 
 const COLORS = {
 	bg: "#151412",
@@ -148,11 +165,14 @@ function drawItem(
 	item: TemplateItem,
 	picture: ImageBitmap | null,
 	x: number,
-	y: number
+	y: number,
+	tile = TILE,
+	/** Off when the name is written next to the picture anyway */
+	nameStrip = true
 ) {
 	ctx.save();
 	ctx.beginPath();
-	ctx.roundRect(x, y, TILE, TILE, 10);
+	ctx.roundRect(x, y, tile, tile, 10);
 	ctx.clip();
 
 	if (picture) {
@@ -166,30 +186,32 @@ function drawItem(
 			s,
 			x,
 			y,
-			TILE,
-			TILE
+			tile,
+			tile
 		);
 
 		// Name strip at the bottom: up to 2 lines, full name where it fits
-		ctx.font = `600 12px ${BODY}`;
-		const lines = clampLines(
-			ctx,
-			wrap(ctx, item.label, TILE - 10),
-			2,
-			TILE - 10
-		);
-		const stripH = lines.length * 14 + 8;
-		ctx.fillStyle = "rgba(0, 0, 0, 0.68)";
-		ctx.fillRect(x, y + TILE - stripH, TILE, stripH);
-		ctx.fillStyle = "#ffffff";
-		ctx.textAlign = "center";
-		ctx.textBaseline = "middle";
-		lines.forEach((line, i) =>
-			ctx.fillText(line, x + TILE / 2, y + TILE - stripH + 4 + 7 + i * 14)
-		);
+		if (nameStrip) {
+			ctx.font = `600 12px ${BODY}`;
+			const lines = clampLines(
+				ctx,
+				wrap(ctx, item.label, tile - 10),
+				2,
+				tile - 10
+			);
+			const stripH = lines.length * 14 + 8;
+			ctx.fillStyle = "rgba(0, 0, 0, 0.68)";
+			ctx.fillRect(x, y + tile - stripH, tile, stripH);
+			ctx.fillStyle = "#ffffff";
+			ctx.textAlign = "center";
+			ctx.textBaseline = "middle";
+			lines.forEach((line, i) =>
+				ctx.fillText(line, x + tile / 2, y + tile - stripH + 4 + 7 + i * 14)
+			);
+		}
 	} else {
 		ctx.fillStyle = COLORS.tileBg;
-		ctx.fillRect(x, y, TILE, TILE);
+		ctx.fillRect(x, y, tile, tile);
 		ctx.fillStyle = COLORS.ink;
 		ctx.textAlign = "center";
 		ctx.textBaseline = "middle";
@@ -198,13 +220,52 @@ function drawItem(
 			item.label,
 			BODY,
 			700,
-			{ w: TILE - 12, h: TILE - 12 },
+			{ w: tile - 12, h: tile - 12 },
 			16,
 			10,
 			1.15
 		);
-		drawLines(ctx, lines, x + TILE / 2, y + TILE / 2, size, 1.15);
+		drawLines(ctx, lines, x + tile / 2, y + tile / 2, size, 1.15);
 	}
+	ctx.restore();
+}
+
+/** One bar split into tier-coloured parts by how many people picked each tier. */
+function drawVoteBar(
+	ctx: CanvasRenderingContext2D,
+	tiers: Tier[],
+	distribution: number[],
+	x: number,
+	y: number,
+	w: number,
+	h: number
+) {
+	const total = distribution.reduce((a, b) => a + b, 0);
+	if (!total) return;
+	ctx.save();
+	ctx.beginPath();
+	ctx.roundRect(x, y, w, h, h / 2);
+	ctx.clip();
+	ctx.fillStyle = COLORS.tileBg;
+	ctx.fillRect(x, y, w, h);
+	let cx = x;
+	distribution.forEach((count, i) => {
+		if (!count) return;
+		const part = (count / total) * w;
+		const tier = tiers[i];
+		ctx.fillStyle = tier.color;
+		ctx.fillRect(cx, y, part, h);
+		// Write the tier name in the part when there's room for it
+		ctx.font = `700 12px ${BODY}`;
+		const text = count > 1 ? `${tier.label} ×${count}` : tier.label;
+		if (ctx.measureText(text).width + 10 <= part) {
+			ctx.fillStyle = textOn(tier.color);
+			ctx.textAlign = "center";
+			ctx.textBaseline = "middle";
+			ctx.fillText(text, cx + part / 2, y + h / 2 + 1);
+		}
+		cx += part;
+	});
 	ctx.restore();
 }
 
@@ -238,7 +299,13 @@ export async function renderTierListImage(opts: ExportOptions): Promise<Blob> {
 	}));
 
 	// Download all pictures that will be shown, in parallel
-	const shown = rows.flatMap((r) => r.ids);
+	const divisive = (opts.divisive ?? []).filter((d) => byId.has(d.item.id));
+	const shown = [
+		...new Set([
+			...rows.flatMap((r) => r.ids),
+			...divisive.map((d) => d.item.id)
+		])
+	];
 	const pictures = new Map(
 		await Promise.all(
 			shown.map(
@@ -258,7 +325,10 @@ export async function renderTierListImage(opts: ExportOptions): Promise<Blob> {
 	});
 	const boardH =
 		rowHeights.reduce((a, b) => a + b, 0) + ROW_GAP * (rows.length - 1);
-	const height = PAD + HEADER_H + boardH + FOOTER_H + PAD / 2;
+	const divisiveH = divisive.length
+		? DIV_HEAD_H + divisive.length * (DIV_TILE + DIV_ROW_GAP) - DIV_ROW_GAP + 8
+		: 0;
+	const height = PAD + HEADER_H + boardH + divisiveH + FOOTER_H + PAD / 2;
 
 	const canvas = document.createElement("canvas");
 	canvas.width = WIDTH * SCALE;
@@ -292,13 +362,15 @@ export async function renderTierListImage(opts: ExportOptions): Promise<Blob> {
 	);
 	ctx.font = `500 20px ${BODY}`;
 	ctx.fillStyle = COLORS.inkSoft;
-	const byline = opts.templateTitle
-		? opts.author
-			? `${opts.author}’s ranking of ${opts.templateTitle}`
-			: `A ranking of ${opts.templateTitle}`
-		: opts.author
-			? `By ${opts.author}`
-			: "";
+	const byline =
+		opts.byline ??
+		(opts.templateTitle
+			? opts.author
+				? `${opts.author}’s ranking of ${opts.templateTitle}`
+				: `A ranking of ${opts.templateTitle}`
+			: opts.author
+				? `By ${opts.author}`
+				: "");
 	if (byline) ctx.fillText(byline, PAD, PAD + title.size + 34);
 
 	drawLogo(ctx, WIDTH - PAD - 190, PAD + 6);
@@ -357,6 +429,53 @@ export async function renderTierListImage(opts: ExportOptions): Promise<Blob> {
 
 		y += h + ROW_GAP;
 	});
+
+	// Most divisive (verdict images only)
+	if (divisive.length) {
+		y += 24 - ROW_GAP;
+		ctx.textAlign = "left";
+		ctx.textBaseline = "alphabetic";
+		ctx.fillStyle = COLORS.ink;
+		ctx.font = `800 26px ${DISPLAY}`;
+		ctx.fillText("Most divisive", PAD, y + 24);
+		ctx.font = `500 16px ${BODY}`;
+		ctx.fillStyle = COLORS.inkSoft;
+		ctx.fillText("The items people disagree about most", PAD, y + 48);
+		y += DIV_HEAD_H - 16;
+
+		const textX = PAD + DIV_TILE + 16;
+		const textW = WIDTH - PAD - textX;
+		for (const row of divisive) {
+			drawItem(
+				ctx,
+				row.item,
+				pictures.get(row.item.id) ?? null,
+				PAD,
+				y,
+				DIV_TILE,
+				false
+			);
+			ctx.textAlign = "left";
+			ctx.textBaseline = "alphabetic";
+			ctx.fillStyle = COLORS.ink;
+			ctx.font = `700 18px ${BODY}`;
+			ctx.fillText(row.item.label, textX, y + 20, textW);
+			ctx.fillStyle = COLORS.inkSoft;
+			ctx.font = `500 15px ${BODY}`;
+			ctx.fillText(row.summary, textX, y + 42, textW);
+			drawVoteBar(
+				ctx,
+				opts.tiers,
+				row.distribution,
+				textX,
+				y + DIV_TILE - DIV_BAR_H,
+				textW,
+				DIV_BAR_H
+			);
+			y += DIV_TILE + DIV_ROW_GAP;
+		}
+		y += 8 - DIV_ROW_GAP + ROW_GAP;
+	}
 
 	// Footer
 	ctx.textAlign = "left";

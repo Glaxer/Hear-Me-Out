@@ -85,6 +85,7 @@
 	rankingCount={data.rankingCount}
 	minRankings={data.minRankings}
 	templateId={data.template.id}
+	templateTitle={data.template.title}
 	loggedIn={!!data.user}
 />
 

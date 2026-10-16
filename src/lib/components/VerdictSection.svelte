@@ -1,11 +1,14 @@
 <script lang="ts">
 	import { tick } from "svelte";
+	import { page } from "$app/state";
+	import ExportImage from "./ExportImage.svelte";
 	import ItemTile from "./ItemTile.svelte";
 	import StackedVotes from "./StackedVotes.svelte";
 	import TierListView from "./TierListView.svelte";
 	import VoteBars from "./VoteBars.svelte";
 	import { imageUrl } from "$lib/images";
 	import { textOn } from "$lib/tiers";
+	import type { ExportOptions } from "$lib/exportImage";
 	import type { TemplateItem } from "$lib/types";
 	import type { Verdict } from "$lib/verdict";
 
@@ -16,6 +19,7 @@
 		rankingCount,
 		minRankings,
 		templateId,
+		templateTitle,
 		loggedIn
 	}: {
 		status: "locked" | "waiting" | "ready";
@@ -24,6 +28,8 @@
 		rankingCount: number;
 		minRankings: number;
 		templateId: string;
+		/** Used as the title of "Save as image". */
+		templateTitle: string;
 		loggedIn: boolean;
 	} = $props();
 
@@ -60,6 +66,34 @@
 		return `${d[top]} said ${tierOf(top).label} · ${d[bottom]} said ${tierOf(bottom).label}`;
 	}
 
+	/** "Save as image": the verdict board plus the most divisive items. */
+	const exportOptions = $derived<ExportOptions | null>(
+		verdict
+			? {
+					title: `${templateTitle}: the verdict`,
+					author: "",
+					templateTitle,
+					byline: `Based on ${people(verdict.listCount)}`,
+					tiers: verdict.tiers,
+					placements: verdict.placements,
+					items,
+					link: `${page.url.host}/templates/${templateId}`,
+					divisive: verdict.divisive.flatMap((id) => {
+						const item = byId.get(id);
+						return item
+							? [
+									{
+										item,
+										distribution: verdict.stats[id].distribution,
+										summary: splitSummary(id)
+									}
+								]
+							: [];
+					})
+				}
+			: null
+	);
+
 	async function select(id: string) {
 		selectedId = selectedId === id ? null : id;
 		await tick();
@@ -72,7 +106,10 @@
 	<div class="section-head">
 		<h2 id="verdict-heading">The verdict</h2>
 		{#if status === "ready" && verdict}
-			<span class="muted">Based on {people(verdict.listCount)}</span>
+			<div class="head-right">
+				<span class="muted">Based on {people(verdict.listCount)}</span>
+				{#if exportOptions}<ExportImage options={exportOptions} />{/if}
+			</div>
 		{/if}
 	</div>
 
@@ -210,6 +247,12 @@
 </section>
 
 <style>
+	.head-right {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		flex-wrap: wrap;
+	}
 	.hint {
 		margin: 0 0 8px;
 		font-size: 0.875rem;
