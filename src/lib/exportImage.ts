@@ -21,6 +21,18 @@ export interface ExportOptions {
 	byline?: string;
 	/** Extra section under the board: the items people disagree about most (the verdict). */
 	divisive?: DivisiveRow[];
+	/** Extra section under the board: where this ranking disagrees most with everyone else. */
+	hotTakes?: { heading: string; rows: HotTakeRow[] };
+}
+
+export interface HotTakeRow {
+	item: TemplateItem;
+	/** The tier this ranking put it in. */
+	mine: Tier;
+	/** Where everyone else's average lands. */
+	others: Tier;
+	/** e.g. "Rated higher than the other 4 votes" */
+	note: string;
 }
 
 export interface DivisiveRow {
@@ -230,6 +242,33 @@ function drawItem(
 	ctx.restore();
 }
 
+/** A tier name on its colour, like the badges on the site. Returns the width it took. */
+function drawBadge(
+	ctx: CanvasRenderingContext2D,
+	tier: Tier,
+	x: number,
+	y: number,
+	maxW: number
+): number {
+	const h = 26;
+	ctx.font = `800 15px ${DISPLAY}`;
+	let label = tier.label;
+	while (label.length > 1 && ctx.measureText(label).width + 20 > maxW) {
+		label = label.slice(0, -1);
+	}
+	if (label !== tier.label) label = `${label.trimEnd()}…`;
+	const w = Math.max(32, ctx.measureText(label).width + 20);
+	ctx.fillStyle = tier.color;
+	ctx.beginPath();
+	ctx.roundRect(x, y, w, h, 6);
+	ctx.fill();
+	ctx.fillStyle = textOn(tier.color);
+	ctx.textAlign = "center";
+	ctx.textBaseline = "middle";
+	ctx.fillText(label, x + w / 2, y + h / 2 + 1);
+	return w;
+}
+
 /** One bar split into tier-coloured parts by how many people picked each tier. */
 function drawVoteBar(
 	ctx: CanvasRenderingContext2D,
@@ -300,10 +339,14 @@ export async function renderTierListImage(opts: ExportOptions): Promise<Blob> {
 
 	// Download all pictures that will be shown, in parallel
 	const divisive = (opts.divisive ?? []).filter((d) => byId.has(d.item.id));
+	const hotTakes = (opts.hotTakes?.rows ?? []).filter((t) =>
+		byId.has(t.item.id)
+	);
 	const shown = [
 		...new Set([
 			...rows.flatMap((r) => r.ids),
-			...divisive.map((d) => d.item.id)
+			...divisive.map((d) => d.item.id),
+			...hotTakes.map((t) => t.item.id)
 		])
 	];
 	const pictures = new Map(
@@ -325,10 +368,17 @@ export async function renderTierListImage(opts: ExportOptions): Promise<Blob> {
 	});
 	const boardH =
 		rowHeights.reduce((a, b) => a + b, 0) + ROW_GAP * (rows.length - 1);
-	const divisiveH = divisive.length
-		? DIV_HEAD_H + divisive.length * (DIV_TILE + DIV_ROW_GAP) - DIV_ROW_GAP + 8
-		: 0;
-	const height = PAD + HEADER_H + boardH + divisiveH + FOOTER_H + PAD / 2;
+	// Extra sections share one layout: heading, then rows of a picture with text beside it
+	const sectionH = (rows: number) =>
+		rows ? DIV_HEAD_H + rows * (DIV_TILE + DIV_ROW_GAP) - DIV_ROW_GAP + 8 : 0;
+	const height =
+		PAD +
+		HEADER_H +
+		boardH +
+		sectionH(divisive.length) +
+		sectionH(hotTakes.length) +
+		FOOTER_H +
+		PAD / 2;
 
 	const canvas = document.createElement("canvas");
 	canvas.width = WIDTH * SCALE;
@@ -430,36 +480,36 @@ export async function renderTierListImage(opts: ExportOptions): Promise<Blob> {
 		y += h + ROW_GAP;
 	});
 
-	// Most divisive (verdict images only)
-	if (divisive.length) {
+	/** Heading + subheading of an extra section; moves y to where its rows start. */
+	const sectionHead = (heading: string, sub: string) => {
 		y += 24 - ROW_GAP;
 		ctx.textAlign = "left";
 		ctx.textBaseline = "alphabetic";
 		ctx.fillStyle = COLORS.ink;
 		ctx.font = `800 26px ${DISPLAY}`;
-		ctx.fillText("Most divisive", PAD, y + 24);
+		ctx.fillText(heading, PAD, y + 24, WIDTH - PAD * 2);
 		ctx.font = `500 16px ${BODY}`;
 		ctx.fillStyle = COLORS.inkSoft;
-		ctx.fillText("The items people disagree about most", PAD, y + 48);
+		ctx.fillText(sub, PAD, y + 48, WIDTH - PAD * 2);
 		y += DIV_HEAD_H - 16;
+	};
+	const textX = PAD + DIV_TILE + 16;
+	const textW = WIDTH - PAD - textX;
+	/** Picture + bold name of one row in an extra section. */
+	const rowStart = (item: TemplateItem) => {
+		drawItem(ctx, item, pictures.get(item.id) ?? null, PAD, y, DIV_TILE, false);
+		ctx.textAlign = "left";
+		ctx.textBaseline = "alphabetic";
+		ctx.fillStyle = COLORS.ink;
+		ctx.font = `700 18px ${BODY}`;
+		ctx.fillText(item.label, textX, y + 20, textW);
+	};
 
-		const textX = PAD + DIV_TILE + 16;
-		const textW = WIDTH - PAD - textX;
+	// Most divisive (verdict images)
+	if (divisive.length) {
+		sectionHead("Most divisive", "The items people disagree about most");
 		for (const row of divisive) {
-			drawItem(
-				ctx,
-				row.item,
-				pictures.get(row.item.id) ?? null,
-				PAD,
-				y,
-				DIV_TILE,
-				false
-			);
-			ctx.textAlign = "left";
-			ctx.textBaseline = "alphabetic";
-			ctx.fillStyle = COLORS.ink;
-			ctx.font = `700 18px ${BODY}`;
-			ctx.fillText(row.item.label, textX, y + 20, textW);
+			rowStart(row.item);
 			ctx.fillStyle = COLORS.inkSoft;
 			ctx.font = `500 15px ${BODY}`;
 			ctx.fillText(row.summary, textX, y + 42, textW);
@@ -472,6 +522,36 @@ export async function renderTierListImage(opts: ExportOptions): Promise<Blob> {
 				textW,
 				DIV_BAR_H
 			);
+			y += DIV_TILE + DIV_ROW_GAP;
+		}
+		y += 8 - DIV_ROW_GAP + ROW_GAP;
+	}
+
+	// Hot takes (ranking images)
+	if (hotTakes.length && opts.hotTakes) {
+		sectionHead(
+			opts.hotTakes.heading,
+			"Where this ranking disagrees most with everyone else"
+		);
+		for (const take of hotTakes) {
+			rowStart(take.item);
+			// "[their tier] → [everyone else's tier]"
+			const badgeY = y + 30;
+			const half = (textW - 40) / 2;
+			let x = textX;
+			x += drawBadge(ctx, take.mine, x, badgeY, half) + 10;
+			ctx.fillStyle = COLORS.inkSoft;
+			ctx.font = `700 18px ${BODY}`;
+			ctx.textAlign = "left";
+			ctx.textBaseline = "middle";
+			ctx.fillText("→", x, badgeY + 13);
+			x += 30;
+			drawBadge(ctx, take.others, x, badgeY, half);
+			ctx.textAlign = "left";
+			ctx.textBaseline = "alphabetic";
+			ctx.fillStyle = COLORS.inkSoft;
+			ctx.font = `500 14px ${BODY}`;
+			ctx.fillText(take.note, textX, y + DIV_TILE - 2, textW);
 			y += DIV_TILE + DIV_ROW_GAP;
 		}
 		y += 8 - DIV_ROW_GAP + ROW_GAP;

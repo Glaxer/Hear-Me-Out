@@ -24,7 +24,26 @@
 		tiers: data.list.tiers,
 		placements: data.list.placements,
 		items: data.items,
-		link: `${page.url.host}/lists/${data.list.id}`
+		link: `${page.url.host}/lists/${data.list.id}`,
+		hotTakes: data.hotTakes?.length
+			? {
+					heading: `${author}’s hottest takes`,
+					rows: data.hotTakes.flatMap((take) => {
+						const item = data.items.find((i) => i.id === take.itemId);
+						const votes = `${take.otherVotes} ${take.otherVotes === 1 ? "vote" : "votes"}`;
+						return item
+							? [
+									{
+										item,
+										mine: take.mine,
+										others: take.others,
+										note: `Rated ${take.diff > 0 ? "higher" : "lower"} than the other ${votes}`
+									}
+								]
+							: [];
+					})
+				}
+			: undefined
 	});
 </script>
 
@@ -62,6 +81,9 @@
 	<div class="row">
 		<ExportImage
 			options={exportOptions}
+			optional={data.hotTakes?.length
+				? { key: "hotTakes", label: "Include hot takes" }
+				: null}
 			shareUrl={data.list.visibility === "private"
 				? null
 				: `${page.url.origin}/lists/${data.list.id}`}

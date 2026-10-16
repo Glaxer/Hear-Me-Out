@@ -5,6 +5,7 @@
 		type ExportOptions
 	} from "$lib/exportImage";
 	import { copyText } from "$lib/clipboard";
+	import Skeleton from "./Skeleton.svelte";
 	import { toast } from "$lib/toast.svelte";
 
 	/**
@@ -12,16 +13,27 @@
 	 * copy the link, copy the picture, or download the picture.
 	 * Without `shareUrl` (not saved yet, or private) only the picture options are offered,
 	 * with `noLinkHint` explaining why.
+	 * `optional` adds a checkbox for leaving an extra section (e.g. hot takes) out of the picture.
 	 */
 	let {
 		options,
 		shareUrl = null,
-		noLinkHint = ""
+		noLinkHint = "",
+		optional = null
 	}: {
 		options: ExportOptions;
 		shareUrl?: string | null;
 		noLinkHint?: string;
+		optional?: { key: "divisive" | "hotTakes"; label: string } | null;
 	} = $props();
+
+	let includeExtra = $state(true);
+	/** What actually goes into the picture, with or without the optional section. */
+	const pictureOptions = $derived<ExportOptions>(
+		optional && !includeExtra
+			? { ...options, [optional.key]: undefined }
+			: options
+	);
 
 	let dialog = $state<HTMLDialogElement>();
 	let blob = $state<Blob | null>(null);
@@ -33,21 +45,42 @@
 	// Copying images needs ClipboardItem (all current desktop browsers; some older phones lack it)
 	let canCopy = $state(false);
 
-	async function open() {
-		dialog?.showModal();
-		if (blob) return; // already rendered
+	/** Counts renders, so a slow older render can't overwrite a newer one. */
+	let renderId = 0;
+
+	async function render() {
+		const id = ++renderId;
 		busy = true;
 		failed = false;
+		// Drop the old picture straight away, so it's clear a new one is being made
+		// and nothing can copy or download the old one meanwhile
+		if (previewUrl) URL.revokeObjectURL(previewUrl);
+		previewUrl = null;
+		blob = null;
 		try {
-			blob = await renderTierListImage(options);
-			previewUrl = URL.createObjectURL(blob);
-			canCopy =
-				typeof ClipboardItem !== "undefined" && !!navigator.clipboard?.write;
+			const next = await renderTierListImage(pictureOptions);
+			if (id !== renderId) return;
+			blob = next;
+			previewUrl = URL.createObjectURL(next);
 		} catch {
-			failed = true;
+			if (id === renderId) failed = true;
 		} finally {
-			busy = false;
+			if (id === renderId) busy = false;
 		}
+	}
+
+	async function open() {
+		// Known before the picture is ready, so the buttons don't shift when it arrives
+		canCopy =
+			typeof ClipboardItem !== "undefined" && !!navigator.clipboard?.write;
+		dialog?.showModal();
+		if (!blob) await render(); // otherwise already rendered
+	}
+
+	/** Ticking or unticking the extra section redraws the preview straight away. */
+	function toggleExtra(event: Event) {
+		includeExtra = (event.currentTarget as HTMLInputElement).checked;
+		render();
 	}
 
 	function close() {
@@ -122,20 +155,34 @@
 			>
 		</div>
 
-		<div class="preview">
-			{#if busy}
-				<p class="muted">Creating the image…</p>
-			{:else if failed}
+		<div class="preview" aria-busy={busy}>
+			{#if failed}
 				<p class="form-error" role="alert">
 					Sorry, the image couldn’t be created. Please try again.
 				</p>
-			{:else if previewUrl}
+			{:else if previewUrl && !busy}
 				<img
 					src={previewUrl}
 					alt="{options.title}, as it will look as a picture"
 				/>
+			{:else}
+				<!-- The preview area has a fixed height, so swapping to this doesn't make the
+				     dialog jump -->
+				<div class="loading">
+					<Skeleton height="100%" radius="0" label="Creating the image…" />
+					<span class="loading-text" aria-hidden="true"
+						>Creating the image…</span
+					>
+				</div>
 			{/if}
 		</div>
+
+		{#if optional}
+			<label class="extra">
+				<input type="checkbox" checked={includeExtra} onchange={toggleExtra} />
+				{optional.label}
+			</label>
+		{/if}
 
 		<div class="actions">
 			{#if !shareUrl && noLinkHint}
@@ -150,14 +197,14 @@
 					class="btn"
 					class:btn-secondary={!!shareUrl}
 					onclick={copy}
-					disabled={!blob}>Copy image</button
+					disabled={busy || !blob}>Copy image</button
 				>
 			{/if}
 			<button
 				type="button"
 				class="btn btn-secondary"
 				onclick={download}
-				disabled={!blob}>Download image</button
+				disabled={busy || !blob}>Download image</button
 			>
 		</div>
 	</div>
@@ -194,18 +241,50 @@
 		margin: 0;
 		font-size: 1.25rem;
 	}
+	/* Fixed height, so the dialog keeps its size whatever the picture's height
+	   (taller pictures scroll, shorter ones sit in the middle) */
 	.preview {
-		display: grid;
-		place-items: center;
-		min-height: 160px;
-		max-height: 60vh;
+		display: flex;
+		height: min(60vh, 620px);
 		overflow: auto;
 		border-radius: var(--radius-small);
 		background: var(--surface-2);
 	}
-	.preview img {
+	/* Auto margins centre a short picture but still let a tall one scroll from the top */
+	.preview > :global(*) {
 		width: 100%;
+		margin: auto 0;
+		flex: none;
+	}
+	.preview img {
 		height: auto;
+	}
+	.loading {
+		position: relative;
+		height: 100%;
+	}
+	.loading-text {
+		position: absolute;
+		inset: 0;
+		display: grid;
+		place-items: center;
+		font-size: 0.9375rem;
+		color: var(--ink-soft);
+	}
+	.extra {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		font-size: 0.9375rem;
+		cursor: pointer;
+		justify-self: start;
+	}
+	.extra input {
+		width: 18px;
+		height: 18px;
+		padding: 0;
+		margin: 0;
+		accent-color: var(--accent);
 	}
 	.no-link {
 		margin: 0 auto 0 0;

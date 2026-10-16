@@ -111,6 +111,9 @@
 				{#if exportOptions}<ExportImage
 						options={exportOptions}
 						shareUrl="{page.url.origin}/templates/{templateId}"
+						optional={verdict.divisive.length
+							? { key: "divisive", label: "Include “Most divisive”" }
+							: null}
 					/>{/if}
 			</div>
 		{/if}
