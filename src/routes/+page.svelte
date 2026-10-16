@@ -7,6 +7,7 @@
 </script>
 
 <SocialMeta
+	siteFirst
 	title="Make, share and compare tier lists"
 	description="Rank anything, send the link to friends or coworkers, and see everyone’s rankings side by side."
 />
