@@ -84,10 +84,6 @@
 			EU, covered by its data protection terms.
 		</li>
 		<li>
-			<strong>Google Fonts</strong> serves the site’s fonts, which means Google receives
-			your IP address when a page loads.
-		</li>
-		<li>
 			<strong>Google and Discord</strong> handle the login if you choose “Continue
 			with Google” or “Continue with Discord”, under their own privacy policies. They
 			learn that you logged in to Hear Me Out.

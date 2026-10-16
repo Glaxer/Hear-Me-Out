@@ -83,8 +83,8 @@ const COLORS = {
 	inkSoft: "#a9a398"
 };
 
-const DISPLAY = '"Bricolage Grotesque", system-ui, sans-serif';
-const BODY = "Inter, system-ui, sans-serif";
+const DISPLAY = '"Bricolage Grotesque Variable", system-ui, sans-serif';
+const BODY = '"Inter Variable", system-ui, sans-serif';
 
 /** Loads an item picture through fetch, so a failing image becomes a text tile instead of breaking the export. */
 async function loadPicture(path: string | null): Promise<ImageBitmap | null> {

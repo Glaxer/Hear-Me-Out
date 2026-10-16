@@ -1,4 +1,8 @@
 <script lang="ts">
+	// The site's fonts, served from our own domain (no requests to Google).
+	// Bricolage with its "optical size" axis, so big headings get the tighter display cut.
+	import "@fontsource-variable/bricolage-grotesque/opsz.css";
+	import "@fontsource-variable/inter";
 	import "../app.css";
 	import { env } from "$env/dynamic/public";
 	import { afterNavigate, replaceState } from "$app/navigation";
@@ -88,9 +92,9 @@
 		{#if env.PUBLIC_SOURCE_URL}
 			· <a href={env.PUBLIC_SOURCE_URL} rel="noopener">Source code</a> · Free
 			software under the
-			<a href="https://www.gnu.org/licenses/agpl-3.0.html" rel="noopener"
-				>AGPL-3.0</a
-			>
+			<a href="https://www.gnu.org/licenses/agpl-3.0.html" rel="noopener">
+				AGPL-3.0
+			</a>
 		{/if}
 	</p>
 </footer>
