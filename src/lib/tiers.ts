@@ -24,6 +24,9 @@ export const TIER_COLORS = [
 	"#bf7fbf"
 ];
 
+/** Longest tier name allowed (the label shrinks its text to fit long names). */
+export const MAX_TIER_LABEL = 80;
+
 export function newTierId(): string {
 	return crypto.randomUUID().slice(0, 8);
 }
@@ -55,7 +58,7 @@ export function parseTiers(raw: unknown): Tier[] | null {
 				typeof t?.color !== "string" ||
 				!/^#[0-9a-fA-F]{6}$/.test(t.color) ||
 				t.label.trim().length === 0 ||
-				t.label.length > 40 ||
+				t.label.length > MAX_TIER_LABEL ||
 				seen.has(t.id)
 			) {
 				return null;

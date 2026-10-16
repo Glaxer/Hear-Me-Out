@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { TIER_COLORS, newTierId } from "$lib/tiers";
+	import { MAX_TIER_LABEL, TIER_COLORS, newTierId } from "$lib/tiers";
 	import type { Tier } from "$lib/types";
 
 	/** Rename, recolour, reorder, add and remove tiers. */
@@ -44,7 +44,7 @@
 			<input
 				type="text"
 				bind:value={tier.label}
-				maxlength="40"
+				maxlength={MAX_TIER_LABEL}
 				required
 				aria-label="Name of tier {i + 1}"
 			/>
