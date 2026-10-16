@@ -6,11 +6,13 @@
 	 * The coloured label at the start of a tier row.
 	 * The full name is always shown: if it doesn't fit, the text shrinks until it does
 	 * (words are only split as a last resort, at the smallest size).
+	 * Small previews (compact) show at most 3 lines and end long names with "…"; the full
+	 * name is in the tooltip.
 	 */
 	let { tier, compact = false }: { tier: Tier; compact?: boolean } = $props();
 
 	/** Smallest font size (px) we shrink to before allowing words to break. */
-	const MIN_SIZE = $derived(compact ? 7 : 9);
+	const MIN_SIZE = $derived(compact ? 8 : 9);
 
 	// Starting size, by the longest word (short labels like "S" stay big)
 	const longestWord = $derived(
@@ -37,9 +39,11 @@
 		text.classList.remove("break-words");
 		let px = parseFloat(getComputedStyle(text).fontSize);
 		// A word wider than the text's own box, or more lines than the label is tall
+		// (or, in small previews, more than the 3 lines shown)
 		const overflows = () =>
 			text!.scrollWidth > text!.clientWidth + 1 ||
-			box!.scrollHeight > box!.clientHeight + 1;
+			box!.scrollHeight > box!.clientHeight + 1 ||
+			(compact && text!.scrollHeight > text!.clientHeight + 1);
 
 		while (overflows() && px > MIN_SIZE) {
 			px -= 0.5;
@@ -117,6 +121,14 @@
 		padding: 2px 3px;
 		font-size: 0.6875rem;
 		line-height: 1.05;
+	}
+	/* …and show at most 3 lines, so a long name doesn't stretch the preview */
+	.compact span {
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 3;
+		line-clamp: 3;
+		overflow: hidden;
 	}
 	.compact.size-xl,
 	.compact.size-l {

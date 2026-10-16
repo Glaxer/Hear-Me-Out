@@ -23,6 +23,19 @@
 		onremove?.(removed.id);
 	}
 
+	/** Grows the name field to fit its text, so long tier names can be read while editing. */
+	function autosize(el: HTMLTextAreaElement, _value: string) {
+		const fit = () => {
+			el.style.height = "auto";
+			el.style.height = `${el.scrollHeight + 2}px`; // + the 1px top and bottom border
+		};
+		fit();
+		// Also re-fit when the field gets narrower or wider (e.g. rotating a phone)
+		const observer = new ResizeObserver(fit);
+		observer.observe(el);
+		return { update: fit, destroy: () => observer.disconnect() };
+	}
+
 	function move(index: number, direction: -1 | 1) {
 		const target = index + direction;
 		if (target < 0 || target >= tiers.length) return;
@@ -41,13 +54,18 @@
 				bind:value={tier.color}
 				aria-label="Colour for tier {tier.label}"
 			/>
-			<input
-				type="text"
-				bind:value={tier.label}
+			<!-- A one-line field that grows for long names; line breaks aren't allowed -->
+			<textarea
+				class="name"
+				rows="1"
+				value={tier.label}
+				oninput={(e) =>
+					(tier.label = e.currentTarget.value.replace(/\s*\n\s*/g, " "))}
+				onkeydown={(e) => e.key === "Enter" && e.preventDefault()}
+				use:autosize={tier.label}
 				maxlength={MAX_TIER_LABEL}
 				required
-				aria-label="Name of tier {i + 1}"
-			/>
+				aria-label="Name of tier {i + 1}"></textarea>
 			<button
 				class="icon-button"
 				type="button"
@@ -100,6 +118,12 @@
 		border-radius: 8px;
 		background: var(--surface);
 		cursor: pointer;
+	}
+	.name {
+		min-height: 0;
+		resize: none;
+		overflow: hidden;
+		line-height: 1.3;
 	}
 	.add {
 		justify-self: start;
