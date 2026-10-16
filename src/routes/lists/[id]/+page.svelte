@@ -28,16 +28,16 @@
 		hotTakes: data.hotTakes?.length
 			? {
 					heading: `${author}’s hottest takes`,
+					who: author,
 					rows: data.hotTakes.flatMap((take) => {
 						const item = data.items.find((i) => i.id === take.itemId);
-						const votes = `${take.otherVotes} ${take.otherVotes === 1 ? "vote" : "votes"}`;
 						return item
 							? [
 									{
 										item,
 										mine: take.mine,
 										others: take.others,
-										note: `Rated ${take.diff > 0 ? "higher" : "lower"} than the other ${votes}`
+										higher: take.diff > 0
 									}
 								]
 							: [];

@@ -22,7 +22,12 @@ export interface ExportOptions {
 	/** Extra section under the board: the items people disagree about most (the verdict). */
 	divisive?: DivisiveRow[];
 	/** Extra section under the board: where this ranking disagrees most with everyone else. */
-	hotTakes?: { heading: string; rows: HotTakeRow[] };
+	hotTakes?: {
+		heading: string;
+		/** Shown next to this ranking's tier, e.g. the username */
+		who: string;
+		rows: HotTakeRow[];
+	};
 }
 
 export interface HotTakeRow {
@@ -31,8 +36,8 @@ export interface HotTakeRow {
 	mine: Tier;
 	/** Where everyone else's average lands. */
 	others: Tier;
-	/** e.g. "Rated higher than the other 4 votes" */
-	note: string;
+	/** True when this ranking rates it higher than everyone else. */
+	higher: boolean;
 }
 
 export interface DivisiveRow {
@@ -59,6 +64,15 @@ const DIV_HEAD_H = 76;
 const DIV_TILE = 72;
 const DIV_ROW_GAP = 12;
 const DIV_BAR_H = 22;
+// Hot takes section: up to three columns of "top tier · picture · bottom tier", like the page
+const HOT_BADGE_MAX_W = 230;
+const HOT_BADGE_FONT = 16;
+const HOT_BADGE_LINE = 20;
+const HOT_BADGE_PAD_X = 10;
+const HOT_BADGE_PAD_Y = 6;
+const HOT_GAP = 12;
+const HOT_ARROW_W = 32;
+const HOT_ARROW_H = 40;
 
 const COLORS = {
 	bg: "#151412",
@@ -242,31 +256,75 @@ function drawItem(
 	ctx.restore();
 }
 
-/** A tier name on its colour, like the badges on the site. Returns the width it took. */
-function drawBadge(
+/** A tier badge that wraps onto up to 3 lines (like the hot takes on the page). */
+function measureBlockBadge(ctx: CanvasRenderingContext2D, tier: Tier) {
+	ctx.font = `800 ${HOT_BADGE_FONT}px ${DISPLAY}`;
+	const inner = HOT_BADGE_MAX_W - HOT_BADGE_PAD_X * 2;
+	const lines = clampLines(ctx, wrap(ctx, tier.label, inner), 3, inner);
+	const w =
+		Math.max(32, ...lines.map((l) => ctx.measureText(l).width)) +
+		HOT_BADGE_PAD_X * 2;
+	const h = lines.length * HOT_BADGE_LINE + HOT_BADGE_PAD_Y * 2;
+	return { lines, w: Math.min(w, HOT_BADGE_MAX_W), h };
+}
+
+/** Draws a block badge centred on `cx`, with its top at `y`. */
+function drawBlockBadge(
 	ctx: CanvasRenderingContext2D,
 	tier: Tier,
-	x: number,
-	y: number,
-	maxW: number
-): number {
-	const h = 26;
-	ctx.font = `800 15px ${DISPLAY}`;
-	let label = tier.label;
-	while (label.length > 1 && ctx.measureText(label).width + 20 > maxW) {
-		label = label.slice(0, -1);
-	}
-	if (label !== tier.label) label = `${label.trimEnd()}…`;
-	const w = Math.max(32, ctx.measureText(label).width + 20);
+	cx: number,
+	y: number
+) {
+	const { lines, w, h } = measureBlockBadge(ctx, tier);
+	const x = cx - w / 2;
 	ctx.fillStyle = tier.color;
 	ctx.beginPath();
-	ctx.roundRect(x, y, w, h, 6);
+	ctx.roundRect(x, y, w, h, 7);
 	ctx.fill();
 	ctx.fillStyle = textOn(tier.color);
+	ctx.font = `800 ${HOT_BADGE_FONT}px ${DISPLAY}`;
 	ctx.textAlign = "center";
 	ctx.textBaseline = "middle";
-	ctx.fillText(label, x + w / 2, y + h / 2 + 1);
-	return w;
+	lines.forEach((line, i) =>
+		ctx.fillText(
+			line,
+			cx,
+			y + HOT_BADGE_PAD_Y + HOT_BADGE_LINE / 2 + i * HOT_BADGE_LINE + 1
+		)
+	);
+	return { x, w, h };
+}
+
+/** The wide block arrow from the page, pointing up or down. */
+function drawArrow(
+	ctx: CanvasRenderingContext2D,
+	x: number,
+	y: number,
+	up: boolean
+) {
+	ctx.save();
+	ctx.translate(x, y);
+	if (!up) {
+		ctx.translate(HOT_ARROW_W, HOT_ARROW_H);
+		ctx.rotate(Math.PI);
+	}
+	ctx.scale(HOT_ARROW_W / 32, HOT_ARROW_H / 40);
+	ctx.beginPath();
+	ctx.moveTo(16, 2);
+	ctx.lineTo(30, 18);
+	ctx.lineTo(22, 18);
+	ctx.lineTo(22, 38);
+	ctx.lineTo(10, 38);
+	ctx.lineTo(10, 18);
+	ctx.lineTo(2, 18);
+	ctx.closePath();
+	ctx.fillStyle = COLORS.inkSoft;
+	ctx.strokeStyle = COLORS.inkSoft;
+	ctx.lineWidth = 2;
+	ctx.lineJoin = "round";
+	ctx.fill();
+	ctx.stroke();
+	ctx.restore();
 }
 
 /** One bar split into tier-coloured parts by how many people picked each tier. */
@@ -368,6 +426,21 @@ export async function renderTierListImage(opts: ExportOptions): Promise<Blob> {
 	});
 	const boardH =
 		rowHeights.reduce((a, b) => a + b, 0) + ROW_GAP * (rows.length - 1);
+	// Hot takes: the tallest top badge and tallest bottom badge decide the row heights,
+	// so all pictures line up (measured on a spare canvas before the real one is made)
+	const measure = document.createElement("canvas").getContext("2d")!;
+	const hotTopH = Math.max(
+		0,
+		...hotTakes.map((t) => measureBlockBadge(measure, t.mine).h)
+	);
+	const hotBottomH = Math.max(
+		0,
+		...hotTakes.map((t) => measureBlockBadge(measure, t.others).h)
+	);
+	const hotTakesH = hotTakes.length
+		? DIV_HEAD_H + hotTopH + HOT_GAP + TILE + HOT_GAP + hotBottomH + 8
+		: 0;
+
 	// Extra sections share one layout: heading, then rows of a picture with text beside it
 	const sectionH = (rows: number) =>
 		rows ? DIV_HEAD_H + rows * (DIV_TILE + DIV_ROW_GAP) - DIV_ROW_GAP + 8 : 0;
@@ -376,7 +449,7 @@ export async function renderTierListImage(opts: ExportOptions): Promise<Blob> {
 		HEADER_H +
 		boardH +
 		sectionH(divisive.length) +
-		sectionH(hotTakes.length) +
+		hotTakesH +
 		FOOTER_H +
 		PAD / 2;
 
@@ -527,34 +600,57 @@ export async function renderTierListImage(opts: ExportOptions): Promise<Blob> {
 		y += 8 - DIV_ROW_GAP + ROW_GAP;
 	}
 
-	// Hot takes (ranking images)
+	// Hot takes (ranking images): columns like the page, "who" tier on top,
+	// the picture with an arrow beside it, everyone else's tier below
 	if (hotTakes.length && opts.hotTakes) {
 		sectionHead(
 			opts.hotTakes.heading,
 			"Where this ranking disagrees most with everyone else"
 		);
-		for (const take of hotTakes) {
-			rowStart(take.item);
-			// "[their tier] → [everyone else's tier]"
-			const badgeY = y + 30;
-			const half = (textW - 40) / 2;
-			let x = textX;
-			x += drawBadge(ctx, take.mine, x, badgeY, half) + 10;
-			ctx.fillStyle = COLORS.inkSoft;
-			ctx.font = `700 18px ${BODY}`;
-			ctx.textAlign = "left";
-			ctx.textBaseline = "middle";
-			ctx.fillText("→", x, badgeY + 13);
-			x += 30;
-			drawBadge(ctx, take.others, x, badgeY, half);
-			ctx.textAlign = "left";
-			ctx.textBaseline = "alphabetic";
+		const colW = (WIDTH - PAD * 2) / 3;
+		const tileY = y + hotTopH + HOT_GAP;
+		const bottomY = tileY + TILE + HOT_GAP;
+		hotTakes.forEach((take, i) => {
+			// Centre the columns as a group when there are fewer than three
+			const offset = ((3 - hotTakes.length) * colW) / 2;
+			const cx = PAD + offset + colW * i + colW / 2;
+
+			const top = measureBlockBadge(ctx, take.mine);
+			const topBox = drawBlockBadge(
+				ctx,
+				take.mine,
+				cx,
+				tileY - HOT_GAP - top.h
+			);
+			const bottomBox = drawBlockBadge(ctx, take.others, cx, bottomY);
+
+			// "Glaxer" / "Others" hang to the left of the badges, not counted when centring
 			ctx.fillStyle = COLORS.inkSoft;
 			ctx.font = `500 14px ${BODY}`;
-			ctx.fillText(take.note, textX, y + DIV_TILE - 2, textW);
-			y += DIV_TILE + DIV_ROW_GAP;
-		}
-		y += 8 - DIV_ROW_GAP + ROW_GAP;
+			ctx.textAlign = "right";
+			ctx.textBaseline = "middle";
+			ctx.fillText(
+				opts.hotTakes!.who,
+				topBox.x - 8,
+				tileY - HOT_GAP - top.h / 2
+			);
+			ctx.fillText("Others", bottomBox.x - 8, bottomY + bottomBox.h / 2);
+
+			drawItem(
+				ctx,
+				take.item,
+				pictures.get(take.item.id) ?? null,
+				cx - TILE / 2,
+				tileY
+			);
+			drawArrow(
+				ctx,
+				cx + TILE / 2 + 14,
+				tileY + (TILE - HOT_ARROW_H) / 2,
+				take.higher
+			);
+		});
+		y = bottomY + hotBottomH + 8 + ROW_GAP;
 	}
 
 	// Footer
