@@ -1,6 +1,11 @@
 import { imageUrl } from "./images";
 import type { TemplateItem } from "./types";
-import { uploadImageBlob } from "./upload";
+import {
+	ImageError,
+	labelFromFilename,
+	processImage,
+	uploadImageBlob
+} from "./upload";
 
 export const MAX_ITEMS = 100;
 
@@ -36,6 +41,41 @@ export function newItem(
 		fullBlob: image?.full ?? null,
 		preview: image ? URL.createObjectURL(image.thumb) : null
 	};
+}
+
+/**
+ * Shrinks each image and turns it into an item named after its file. Items are handed over
+ * one at a time through `onItem`, so they appear while the rest are still being processed.
+ * Returns how many were added and what went wrong (too many files, unreadable images).
+ */
+export async function imagesToItems(
+	files: File[],
+	spaceLeft: number,
+	onItem: (item: EditableItem) => void,
+	onProgress?: (done: number, total: number) => void
+): Promise<{ added: number; problems: string[] }> {
+	const problems: string[] = [];
+	const accepted = files.slice(0, Math.max(0, spaceLeft));
+	if (accepted.length < files.length) {
+		problems.push(
+			`Only ${MAX_ITEMS} items fit, so ${files.length - accepted.length} file(s) were skipped.`
+		);
+	}
+
+	let added = 0;
+	for (const [done, file] of accepted.entries()) {
+		onProgress?.(done, accepted.length);
+		try {
+			const image = await processImage(file);
+			onItem(newItem(labelFromFilename(file.name) || "Untitled", image));
+			added++;
+		} catch (err) {
+			const reason =
+				err instanceof ImageError ? err.message : "something went wrong";
+			problems.push(`${file.name}: ${reason}.`);
+		}
+	}
+	return { added, problems };
 }
 
 export function fromTemplateItem(item: TemplateItem): EditableItem {

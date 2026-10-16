@@ -5,6 +5,7 @@
 	import ExportImage from "$lib/components/ExportImage.svelte";
 	import ItemsEditor from "$lib/components/ItemsEditor.svelte";
 	import SocialMeta from "$lib/components/SocialMeta.svelte";
+	import TierControls from "$lib/components/TierControls.svelte";
 	import TierEditor from "$lib/components/TierEditor.svelte";
 	import { appendItemsToForm, MAX_ITEMS, type EditableItem } from "$lib/items";
 	import {
@@ -23,8 +24,10 @@
 	import type { ActionData, PageData } from "./$types";
 
 	/**
-	 * Quick tier list: add pictures or text, rank them, save as an image. No account needed;
-	 * everything stays in this browser until you save it with "Save & share".
+	 * Quick tier list, in two steps:
+	 * 1. Setup: the tiers and items, laid out like the template form.
+	 * 2. Rank: the board, with "Share" (picture) and "Save & share" (link).
+	 * No account needed; everything stays in this browser until it's saved.
 	 */
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -33,11 +36,12 @@
 
 	let title = $state("");
 	let visibility = $state<ListVisibility>("unlisted");
-	// Replaced as a whole on every change (never mutated), so plain values are enough
-	let tiers = $state.raw<Tier[]>(defaultTiers());
+	// Edited in place by the tier settings in the setup step
+	let tiers = $state<Tier[]>(defaultTiers());
+	// Replaced as a whole on every change (never mutated), so a plain value is enough
 	let placements = $state.raw<Placements>({});
 	let items = $state<EditableItem[]>([]);
-	let mode = $state<"items" | "rank">("items");
+	let mode = $state<"setup" | "rank">("setup");
 	/** Changes each time the ranking board opens, so it starts from the current state. */
 	let boardKey = $state(0);
 
@@ -67,7 +71,7 @@
 			fullBlob: i.full,
 			preview: i.thumb ? URL.createObjectURL(i.thumb) : null
 		}));
-		mode = items.length >= 2 ? "rank" : "items";
+		mode = items.length >= 2 ? "rank" : "setup";
 		boardKey++;
 		phase = "edit";
 	}
@@ -79,7 +83,7 @@
 		tiers = defaultTiers();
 		placements = {};
 		items = [];
-		mode = "items";
+		mode = "setup";
 		phase = "edit";
 	}
 
@@ -119,7 +123,8 @@
 		return {
 			title,
 			visibility,
-			tiers,
+			// Plain copy: browser storage can't store Svelte's live state objects
+			tiers: $state.snapshot(tiers) as Tier[],
 			placements,
 			items: items.map((i) => ({
 				key: i.key,
@@ -150,7 +155,7 @@
 		}))
 	);
 
-	/** Drops placed items that were removed meanwhile. */
+	/** Drops placements for items or tiers that were removed during setup. */
 	function cleanPlacements(): Placements {
 		const keys = new Set(items.map((i) => i.key));
 		return Object.fromEntries(
@@ -171,9 +176,19 @@
 			clientError = "Every item needs a name.";
 			return;
 		}
+		if (tiers.some((t) => !t.label.trim())) {
+			clientError = "Every tier needs a name.";
+			return;
+		}
 		placements = cleanPlacements();
 		boardKey++;
 		mode = "rank";
+		window.scrollTo({ top: 0 });
+	}
+
+	function backToSetup() {
+		clientError = null;
+		mode = "setup";
 		window.scrollTo({ top: 0 });
 	}
 
@@ -202,11 +217,13 @@
 	<div>
 		<h1>Quick tier list</h1>
 		<p class="muted lead">
-			{#if data.user}
-				Add pictures or names, rank them, and save it to get a link.
+			{#if mode === "rank"}
+				Drag the items into the tiers.
+				{data.user
+					? "Save it to get a link."
+					: "Save it as an image, no account needed."}
 			{:else}
-				Add pictures or names, rank them, and save it as an image. No account
-				needed.
+				Set up your tiers and add the pictures or names you want to rank.
 			{/if}
 		</p>
 	</div>
@@ -236,30 +253,23 @@
 		</div>
 	</div>
 {:else}
-	<ol class="steps" aria-label="Steps">
-		<li class:current={mode === "items"}>
-			<button
-				type="button"
-				class="step-button"
-				onclick={() => (mode = "items")}
-				disabled={submitting}>1. Add items</button
-			>
-		</li>
-		<li class:current={mode === "rank"}>
-			<button
-				type="button"
-				class="step-button"
-				onclick={goRank}
-				disabled={submitting}>2. Rank them</button
-			>
-		</li>
-	</ol>
-
 	{#if clientError}<p class="form-error" role="alert">{clientError}</p>{/if}
 	{#if form?.error}<p class="form-error" role="alert">{form.error}</p>{/if}
 
-	{#if mode === "items"}
-		<ItemsEditor bind:items />
+	{#if mode === "setup"}
+		<div class="setup">
+			<fieldset class="field">
+				<legend class="field-label">Tiers</legend>
+				<small
+					>Rename, recolour or reorder them. You can still change them while
+					ranking.</small
+				>
+				<TierControls bind:tiers />
+			</fieldset>
+
+			<ItemsEditor bind:items />
+		</div>
+
 		<div class="save-bar">
 			<span class="muted"
 				>{items.length < 2
@@ -270,10 +280,19 @@
 				type="button"
 				class="btn"
 				onclick={goRank}
-				disabled={items.length < 2}>Rank them →</button
+				disabled={items.length < 2}>Go to rank →</button
 			>
 		</div>
 	{:else}
+		<p class="back">
+			<button
+				type="button"
+				class="link-button muted"
+				onclick={backToSetup}
+				disabled={submitting}>← Back to tiers and items</button
+			>
+		</p>
+
 		<form
 			method="POST"
 			bind:this={formEl}
@@ -399,27 +418,22 @@
 		margin: 0 0 6px;
 		font-size: 1.25rem;
 	}
-	.steps {
-		list-style: none;
-		display: flex;
-		gap: 8px;
-		margin: 0 0 20px;
+	/* Same spacing as the template form */
+	.setup {
+		display: grid;
+		gap: 20px;
+	}
+	fieldset {
+		border: none;
 		padding: 0;
+		margin: 0;
 	}
-	.step-button {
-		font: inherit;
-		font-weight: 600;
-		padding: 6px 14px;
-		border-radius: 999px;
-		border: 1px solid var(--line);
-		background: transparent;
-		color: var(--ink-soft);
-		cursor: pointer;
+	legend {
+		padding: 0;
+		margin-bottom: 6px;
 	}
-	.current .step-button {
-		background: var(--ink);
-		border-color: var(--ink);
-		color: var(--bg);
+	.back {
+		margin: 0 0 12px;
 	}
 	.meta-fields {
 		display: grid;

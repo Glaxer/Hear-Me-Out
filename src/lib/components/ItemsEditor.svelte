@@ -1,7 +1,12 @@
 <script lang="ts">
-	import { MAX_ITEMS, newItem, type EditableItem } from "$lib/items";
+	import {
+		imagesToItems,
+		MAX_ITEMS,
+		newItem,
+		type EditableItem
+	} from "$lib/items";
 	import { toast } from "$lib/toast.svelte";
-	import { ImageError, labelFromFilename, processImage } from "$lib/upload";
+	import { ImageError, processImage } from "$lib/upload";
 
 	/** Add, rename, re-image and remove template items. */
 	let { items = $bindable() }: { items: EditableItem[] } = $props();
@@ -11,7 +16,7 @@
 	let problems = $state<string[]>([]);
 	let textLabel = $state("");
 	let bulkText = $state("");
-	let fileInput: HTMLInputElement;
+	let fileInput = $state<HTMLInputElement>();
 
 	const spaceLeft = $derived(MAX_ITEMS - items.length);
 
@@ -19,30 +24,15 @@
 	async function addFiles(files: File[]) {
 		if (files.length === 0) return;
 		problems = [];
-
-		let accepted = files;
-		if (files.length > spaceLeft) {
-			accepted = files.slice(0, Math.max(0, spaceLeft));
-			problems.push(
-				`Only ${MAX_ITEMS} items fit in a template, so ${files.length - accepted.length} file(s) were skipped.`
-			);
-		}
-
-		processing = { done: 0, total: accepted.length };
-		let added = 0;
-		for (const file of accepted) {
-			try {
-				const image = await processImage(file);
-				items.push(newItem(labelFromFilename(file.name) || "Untitled", image));
-				added++;
-			} catch (err) {
-				const reason =
-					err instanceof ImageError ? err.message : "something went wrong";
-				problems.push(`${file.name}: ${reason}.`);
-			}
-			processing.done++;
-		}
+		const result = await imagesToItems(
+			files,
+			spaceLeft,
+			(item) => items.push(item),
+			(done, total) => (processing = { done, total })
+		);
 		processing = null;
+		problems = result.problems;
+		const added = result.added;
 
 		if (added > 0) toast(`Added ${added} ${added === 1 ? "item" : "items"}.`);
 		if (problems.length && added === 0)
@@ -147,10 +137,10 @@
 		role="button"
 		tabindex="0"
 		aria-label="Add images. Choose files or drop them here."
-		onclick={() => fileInput.click()}
+		onclick={() => fileInput?.click()}
 		onkeydown={(e) =>
 			(e.key === "Enter" || e.key === " ") &&
-			(e.preventDefault(), fileInput.click())}
+			(e.preventDefault(), fileInput?.click())}
 		ondragenter={(e) => (e.preventDefault(), (dragging = true))}
 		ondragover={(e) => e.preventDefault()}
 		ondragleave={(e) => {
@@ -166,7 +156,22 @@
 				></span>
 			</div>
 		{:else}
-			<span class="drop-icon" aria-hidden="true">⬆</span>
+			<!-- A stack of pictures: you can add several at once -->
+			<svg
+				class="drop-icon"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="1.75"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				aria-hidden="true"
+			>
+				<rect x="7" y="3" width="14" height="14" rx="2" />
+				<circle cx="11.5" cy="7.5" r="1.3" />
+				<path d="m21 13-3.5-3.5L10 17" />
+				<path d="M4 7v11a2 2 0 0 0 2 2h11" />
+			</svg>
 			<strong
 				>{dragging
 					? "Drop to add them"
@@ -328,8 +333,14 @@
 		cursor: progress;
 	}
 	.drop-icon {
-		font-size: 1.5rem;
-		line-height: 1;
+		width: 34px;
+		height: 34px;
+		margin-bottom: 2px;
+		transition: transform 0.12s ease;
+	}
+	/* A little lift while files are held over the box */
+	.dropzone.dragging .drop-icon {
+		transform: translateY(-3px);
 	}
 	.progress {
 		width: min(260px, 80%);
@@ -463,6 +474,9 @@
 	@media (prefers-reduced-motion: reduce) {
 		.item-card {
 			animation: none;
+		}
+		.drop-icon {
+			transition: none;
 		}
 	}
 </style>
