@@ -43,9 +43,21 @@
 			</p>{/if}
 	</div>
 	<div class="actions">
-		<a class="btn" href="/templates/{data.template.id}/rank">
-			{mine.length ? "Make another ranking" : "Rank this"}
-		</a>
+		<div class="main-actions">
+			<span
+				title="Anyone with this link can make their own ranking{unlisted
+					? '. This template is hidden from browse and search, so the link is the only way in.'
+					: '.'}"
+			>
+				<ShareLink
+					variant="large"
+					url="{page.url.origin}/templates/{data.template.id}"
+				/>
+			</span>
+			<a class="btn" href="/templates/{data.template.id}/rank">
+				{mine.length ? "Make another ranking" : "Rank this"}
+			</a>
+		</div>
 		{#if isOwner}
 			<a
 				class="btn btn-secondary btn-small"
@@ -68,15 +80,6 @@
 		{/if}
 	</div>
 </div>
-
-<ShareLink
-	variant="card"
-	url="{page.url.origin}/templates/{data.template.id}"
-	heading="Invite people to rank this"
-	hint={unlisted
-		? "This template is hidden from browse and search. Only people with this link can find it."
-		: "Anyone with this link can make their own ranking."}
-/>
 
 <VerdictSection
 	status={data.verdictState}
@@ -198,6 +201,12 @@
 	}
 	.actions form {
 		margin: 0;
+	}
+	.main-actions {
+		display: flex;
+		gap: 8px;
+		flex-wrap: wrap;
+		justify-content: flex-end;
 	}
 	.show-items {
 		margin-top: 20px;

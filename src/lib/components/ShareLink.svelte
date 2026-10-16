@@ -3,7 +3,8 @@
 	import { toast } from "$lib/toast.svelte";
 
 	/**
-	 * A "Copy link" button. `variant="card"` wraps it with a heading and hint text.
+	 * A "Copy link" button. `variant="card"` wraps it with a heading and hint text;
+	 * `variant="large"` is a full-size button to sit next to other main buttons.
 	 */
 	let {
 		url,
@@ -16,7 +17,7 @@
 		label?: string;
 		heading?: string;
 		hint?: string;
-		variant?: "button" | "card";
+		variant?: "button" | "large" | "card";
 	} = $props();
 
 	let copied = $state(false);
@@ -58,6 +59,8 @@
 		</div>
 		{@render button("")}
 	</div>
+{:else if variant === "large"}
+	{@render button("btn-secondary")}
 {:else}
 	{@render button("btn-secondary btn-small")}
 {/if}
