@@ -4,10 +4,24 @@
 		renderTierListImage,
 		type ExportOptions
 	} from "$lib/exportImage";
+	import { copyText } from "$lib/clipboard";
 	import { toast } from "$lib/toast.svelte";
 
-	/** "Save as image": renders the tier list, shows a preview, then copy or download. */
-	let { options }: { options: ExportOptions } = $props();
+	/**
+	 * "Share": one dialog with every way to share a tier list (or a verdict):
+	 * copy the link, copy the picture, or download the picture.
+	 * Without `shareUrl` (not saved yet, or private) only the picture options are offered,
+	 * with `noLinkHint` explaining why.
+	 */
+	let {
+		options,
+		shareUrl = null,
+		noLinkHint = ""
+	}: {
+		options: ExportOptions;
+		shareUrl?: string | null;
+		noLinkHint?: string;
+	} = $props();
 
 	let dialog = $state<HTMLDialogElement>();
 	let blob = $state<Blob | null>(null);
@@ -38,6 +52,19 @@
 
 	function close() {
 		dialog?.close();
+	}
+
+	async function copyLink() {
+		if (!shareUrl) return;
+		if (await copyText(shareUrl)) {
+			toast("Link copied. Paste it anywhere to share.");
+			close();
+		} else {
+			toast(
+				"Couldn’t copy the link. Copy it from the address bar instead.",
+				"error"
+			);
+		}
 	}
 
 	async function copy() {
@@ -75,7 +102,7 @@
 </script>
 
 <button class="btn btn-secondary btn-small export" type="button" onclick={open}>
-	<span aria-hidden="true">🖼</span> Save as image
+	Share
 </button>
 
 <dialog
@@ -86,7 +113,7 @@
 >
 	<div class="inner">
 		<div class="head">
-			<h2 id="export-title">Save as image</h2>
+			<h2 id="export-title">Share</h2>
 			<button
 				type="button"
 				class="icon-button"
@@ -105,22 +132,32 @@
 			{:else if previewUrl}
 				<img
 					src={previewUrl}
-					alt="{options.title}, as it will look when saved"
+					alt="{options.title}, as it will look as a picture"
 				/>
 			{/if}
 		</div>
 
 		<div class="actions">
+			{#if !shareUrl && noLinkHint}
+				<p class="muted no-link">{noLinkHint}</p>
+			{/if}
+			{#if shareUrl}
+				<button type="button" class="btn" onclick={copyLink}>Copy link</button>
+			{/if}
 			{#if canCopy}
-				<button type="button" class="btn" onclick={copy} disabled={!blob}
-					>Copy image</button
+				<button
+					type="button"
+					class="btn"
+					class:btn-secondary={!!shareUrl}
+					onclick={copy}
+					disabled={!blob}>Copy image</button
 				>
 			{/if}
 			<button
 				type="button"
 				class="btn btn-secondary"
 				onclick={download}
-				disabled={!blob}>Download</button
+				disabled={!blob}>Download image</button
 			>
 		</div>
 	</div>
@@ -169,6 +206,11 @@
 	.preview img {
 		width: 100%;
 		height: auto;
+	}
+	.no-link {
+		margin: 0 auto 0 0;
+		font-size: 0.875rem;
+		align-self: center;
 	}
 	.actions {
 		display: flex;

@@ -35,7 +35,7 @@
 		submitLabel?: string;
 		/** Template id: keeps an unsaved draft of this ranking in the browser. */
 		draftKey?: string | null;
-		/** Shows "Save as image" for the ranking as it is right now. */
+		/** Shows "Share" (copy or download the picture) for the ranking as it is right now. */
 		exportInfo?: Pick<
 			ExportOptions,
 			"author" | "templateTitle" | "link"
@@ -152,7 +152,10 @@
 			</p>
 		{/if}
 		<div class="save-actions">
-			{#if exportOptions}<ExportImage options={exportOptions} />{/if}
+			{#if exportOptions}<ExportImage
+					options={exportOptions}
+					noLinkHint="Save your ranking to get a link to share."
+				/>{/if}
 			<button class="btn" type="submit" disabled={submitting}>
 				{submitting ? (guest ? "One moment…" : "Saving…") : submitLabel}
 			</button>

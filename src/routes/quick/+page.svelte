@@ -361,7 +361,10 @@
 					</p>
 				{/if}
 				<div class="save-actions">
-					<ExportImage options={exportOptions} />
+					<ExportImage
+						options={exportOptions}
+						noLinkHint="Save your tier list to get a link to share."
+					/>
 					<button class="btn" type="submit" disabled={submitting}>
 						{status ??
 							(submitting

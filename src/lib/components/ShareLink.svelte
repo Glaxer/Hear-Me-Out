@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { copyText } from "$lib/clipboard";
 	import { toast } from "$lib/toast.svelte";
 
 	/**
@@ -22,26 +23,12 @@
 	let timer: ReturnType<typeof setTimeout> | undefined;
 
 	async function copy() {
-		try {
-			await navigator.clipboard.writeText(url);
-		} catch {
-			// Older browsers / non-secure pages: fall back to a temporary text field
-			const field = Object.assign(document.createElement("textarea"), {
-				value: url
-			});
-			field.style.position = "fixed";
-			field.style.opacity = "0";
-			document.body.append(field);
-			field.select();
-			const ok = document.execCommand("copy");
-			field.remove();
-			if (!ok) {
-				toast(
-					"Couldn’t copy the link. Copy it from the address bar instead.",
-					"error"
-				);
-				return;
-			}
+		if (!(await copyText(url))) {
+			toast(
+				"Couldn’t copy the link. Copy it from the address bar instead.",
+				"error"
+			);
+			return;
 		}
 		toast("Link copied. Paste it anywhere to share.");
 		copied = true;

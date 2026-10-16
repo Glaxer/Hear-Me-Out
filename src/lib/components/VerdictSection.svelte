@@ -28,7 +28,7 @@
 		rankingCount: number;
 		minRankings: number;
 		templateId: string;
-		/** Used as the title of "Save as image". */
+		/** Used as the title of the shared picture. */
 		templateTitle: string;
 		loggedIn: boolean;
 	} = $props();
@@ -66,7 +66,7 @@
 		return `${d[top]} said ${tierOf(top).label} · ${d[bottom]} said ${tierOf(bottom).label}`;
 	}
 
-	/** "Save as image": the verdict board plus the most divisive items. */
+	/** "Share": the picture shows the verdict board plus the most divisive items. */
 	const exportOptions = $derived<ExportOptions | null>(
 		verdict
 			? {
@@ -108,7 +108,10 @@
 		{#if status === "ready" && verdict}
 			<div class="head-right">
 				<span class="muted">Based on {people(verdict.listCount)}</span>
-				{#if exportOptions}<ExportImage options={exportOptions} />{/if}
+				{#if exportOptions}<ExportImage
+						options={exportOptions}
+						shareUrl="{page.url.origin}/templates/{templateId}"
+					/>{/if}
 			</div>
 		{/if}
 	</div>

@@ -3,7 +3,6 @@
 	import { page } from "$app/state";
 	import ExportImage from "$lib/components/ExportImage.svelte";
 	import HotTakes from "$lib/components/HotTakes.svelte";
-	import ShareLink from "$lib/components/ShareLink.svelte";
 	import SocialMeta from "$lib/components/SocialMeta.svelte";
 	import TierListView from "$lib/components/TierListView.svelte";
 	import { visibilityChip } from "$lib/visibility";
@@ -40,11 +39,11 @@
 {#if justSaved}
 	<p class="form-success">
 		{#if data.list.visibility === "public"}
-			Saved! Use “Copy link” to share it. Your ranking also shows on the
+			Saved! Use “Share” to send it to others. Your ranking also shows on the
 			template page.
 		{:else if data.list.visibility === "unlisted"}
-			Saved! Only people you send the link to can see this ranking. Use “Copy
-			link” to share it.
+			Saved! Only people you send the link to can see this ranking. Use “Share”
+			to send it to them.
 		{:else}
 			Saved as private. Only you can see it. Edit it to share it.
 		{/if}
@@ -61,10 +60,15 @@
 		<h1>{data.list.title}</h1>
 	</div>
 	<div class="row">
-		{#if data.list.visibility !== "private"}
-			<ShareLink url="{page.url.origin}/lists/{data.list.id}" />
-		{/if}
-		<ExportImage options={exportOptions} />
+		<ExportImage
+			options={exportOptions}
+			shareUrl={data.list.visibility === "private"
+				? null
+				: `${page.url.origin}/lists/${data.list.id}`}
+			noLinkHint={isOwner
+				? "This list is private. Edit it to share a link."
+				: ""}
+		/>
 		{#if isOwner}
 			<a class="btn btn-secondary btn-small" href="/lists/{data.list.id}/edit"
 				>Edit</a
