@@ -133,19 +133,35 @@
 		<h2>Everyone’s rankings <span class="muted">({others.length})</span></h2>
 	</div>
 	{#if others.length}
+		{#if !data.viewerHasRanked}
+			<p class="muted blur-note">
+				Blurred until you’ve <a href="/templates/{data.template.id}/rank"
+					>made your own ranking</a
+				>, so they can’t sway your picks. You can still open one to peek.
+			</p>
+		{/if}
 		<div class="list-grid">
 			{#each others as list (list.id)}
-				<a class="card list-card" href="/lists/{list.id}">
+				<a
+					class="card list-card"
+					class:hidden-ranking={!data.viewerHasRanked}
+					href="/lists/{list.id}"
+				>
 					<div class="list-card-head">
 						<strong>{list.title}</strong>
 						<span class="muted">{list.profiles?.username ?? "someone"}</span>
 					</div>
-					<TierListView
-						tiers={list.tiers}
-						placements={list.placements}
-						items={data.items}
-						compact
-					/>
+					<div class="preview" aria-hidden={!data.viewerHasRanked}>
+						<TierListView
+							tiers={list.tiers}
+							placements={list.placements}
+							items={data.items}
+							compact
+						/>
+						{#if !data.viewerHasRanked}
+							<span class="peek">Click to peek</span>
+						{/if}
+					</div>
 				</a>
 			{/each}
 		</div>
@@ -205,6 +221,43 @@
 	}
 	.list-card:hover {
 		border-color: var(--ink-soft);
+	}
+	.blur-note {
+		margin: 0 0 12px;
+		font-size: 0.875rem;
+	}
+	.preview {
+		position: relative;
+	}
+	/* Not ranked yet: hide where things landed, but keep the card clickable */
+	.hidden-ranking .preview :global(*) {
+		pointer-events: none; /* no tooltips revealing item names */
+	}
+	.hidden-ranking .preview > :global(:first-child) {
+		filter: blur(7px);
+		opacity: 0.8;
+		user-select: none;
+	}
+	.peek {
+		position: absolute;
+		inset: 0;
+		display: grid;
+		place-items: center;
+		font-size: 0.875rem;
+		font-weight: 600;
+		color: var(--ink);
+		opacity: 0;
+		transition: opacity 0.12s ease;
+	}
+	.hidden-ranking:hover .peek,
+	.hidden-ranking:focus-visible .peek {
+		opacity: 1;
+	}
+	/* Touch screens can't hover, so always show the hint there */
+	@media (hover: none) {
+		.peek {
+			opacity: 1;
+		}
 	}
 	.list-card-head {
 		display: flex;

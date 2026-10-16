@@ -49,6 +49,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		lists: shownLists,
 		verdict,
 		verdictState,
+		// Others' rankings are blurred until then too (they can still be opened)
+		viewerHasRanked,
 		rankingCount: counted.length,
 		minRankings: VERDICT_MIN_LISTS
 	};
