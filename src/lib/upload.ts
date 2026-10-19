@@ -5,6 +5,8 @@ const THUMB_SIDE = 256;
 const FULL_SIDE = 1920;
 /** Storage bucket limit is 2 MB; stay safely below it. */
 const FULL_MAX_BYTES = 1.8 * 1024 * 1024;
+/** Thumbnails are shown many at a time, so keep them light. */
+const THUMB_MAX_BYTES = 300 * 1024;
 /** Raw files can be big (phone photos); they're shrunk in the browser before upload. */
 export const MAX_SOURCE_MB = 40;
 
@@ -18,8 +20,8 @@ export interface ProcessedImage {
 }
 
 /**
- * Turns an uploaded file into a small thumbnail and a large viewer image, both WebP.
- * Throws an ImageError with a message that can be shown to the user.
+ * Turns an uploaded file into a small thumbnail and a large viewer image (WebP, or PNG/JPEG in
+ * browsers that can't make WebP). Throws an ImageError with a message that can be shown to the user.
  */
 export async function processImage(file: File): Promise<ProcessedImage> {
 	const isHeic =
@@ -43,23 +45,32 @@ export async function processImage(file: File): Promise<ProcessedImage> {
 	}
 
 	try {
-		const thumb = await resize(source, THUMB_SIDE, 0.85);
+		const thumb = await resize(source, THUMB_SIDE, 0.85, THUMB_MAX_BYTES);
 		// Try progressively smaller/lighter versions until the large image fits the size limit
-		let full = await resize(source, FULL_SIDE, 0.82);
+		let full = await resize(source, FULL_SIDE, 0.82, FULL_MAX_BYTES);
 		if (full.size > FULL_MAX_BYTES)
-			full = await resize(source, FULL_SIDE, 0.65);
-		if (full.size > FULL_MAX_BYTES) full = await resize(source, 1280, 0.7);
+			full = await resize(source, FULL_SIDE, 0.65, FULL_MAX_BYTES);
+		if (full.size > FULL_MAX_BYTES)
+			full = await resize(source, 1280, 0.7, FULL_MAX_BYTES);
+		if (full.size > FULL_MAX_BYTES)
+			throw new ImageError("the image is too detailed to shrink enough");
 		return { thumb, full };
 	} finally {
 		if ("close" in source) source.close();
 	}
 }
 
-/** Draws the image at most `maxSide` px on its longest side and encodes it as WebP. */
+/**
+ * Draws the image at most `maxSide` px on its longest side and encodes it, preferably as WebP.
+ * Safari (and so every browser on iPhone and iPad) can't make WebP and quietly returns a PNG
+ * instead, which is far too big for photos. Then: PNG if it fits `maxBytes` (keeps transparency),
+ * otherwise JPEG.
+ */
 async function resize(
 	source: ImageBitmap | HTMLImageElement,
 	maxSide: number,
-	quality: number
+	quality: number,
+	maxBytes: number
 ): Promise<Blob> {
 	const sourceWidth = source.width || maxSide;
 	const sourceHeight = source.height || maxSide;
@@ -70,15 +81,35 @@ async function resize(
 	const canvas = document.createElement("canvas");
 	canvas.width = width;
 	canvas.height = height;
-	canvas.getContext("2d")!.drawImage(source, 0, 0, width, height);
+	const ctx = canvas.getContext("2d")!;
+	ctx.drawImage(source, 0, 0, width, height);
 
+	const webp = await toBlob(canvas, "image/webp", quality);
+	if (webp.type === "image/webp") return webp;
+
+	const png =
+		webp.type === "image/png" ? webp : await toBlob(canvas, "image/png");
+	if (png.size <= maxBytes) return png;
+
+	// JPEG has no transparency: put a white background behind see-through parts (instead of black)
+	ctx.globalCompositeOperation = "destination-over";
+	ctx.fillStyle = "#fff";
+	ctx.fillRect(0, 0, width, height);
+	return toBlob(canvas, "image/jpeg", quality);
+}
+
+function toBlob(
+	canvas: HTMLCanvasElement,
+	type: string,
+	quality?: number
+): Promise<Blob> {
 	return new Promise((resolve, reject) =>
 		canvas.toBlob(
 			(b) =>
 				b
 					? resolve(b)
 					: reject(new ImageError("the image couldn’t be processed")),
-			"image/webp",
+			type,
 			quality
 		)
 	);
@@ -109,10 +140,12 @@ export async function uploadImageBlob(
 	userId: string,
 	blob: Blob
 ): Promise<string> {
-	const path = `${userId}/${crypto.randomUUID()}.webp`;
+	const type = blob.type || "image/webp";
+	const extension = { "image/png": "png", "image/jpeg": "jpg" }[type] ?? "webp";
+	const path = `${userId}/${crypto.randomUUID()}.${extension}`;
 	const { error } = await getBrowserClient()
 		.storage.from(IMAGE_BUCKET)
-		.upload(path, blob, { contentType: "image/webp", upsert: false });
+		.upload(path, blob, { contentType: type, upsert: false });
 	if (error) throw new Error(error.message);
 	return path;
 }
