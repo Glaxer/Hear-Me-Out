@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onMount, untrack } from "svelte";
 	import ItemTile from "./ItemTile.svelte";
+	import { imageUrl } from "$lib/images";
+	import { imagePreview, type PreviewImage } from "$lib/imagePreview";
 	import TierControls from "./TierControls.svelte";
 	import TierLabel from "./TierLabel.svelte";
 	import { unrankedIds } from "$lib/tiers";
@@ -65,6 +67,12 @@
 	});
 
 	const byId = $derived(new Map(items.map((i) => [i.id, i])));
+
+	/** The big picture shown on hover (pictures only; text items keep the plain tooltip). */
+	function previewFor(item: TemplateItem): PreviewImage | null {
+		const src = imageUrl(item.full_image_path ?? item.image_path);
+		return src ? { src, label: item.label } : null;
+	}
 	const selectedLabel = $derived(
 		selectedId ? byId.get(selectedId)?.label : null
 	);
@@ -400,7 +408,8 @@
 			class:selected={selectedId === id}
 			draggable={coarsePointer ? "false" : "true"}
 			aria-pressed={selectedId === id}
-			use:tooltip={item.label}
+			use:tooltip={item.image_path ? "" : item.label}
+			use:imagePreview={previewFor(item)}
 			aria-label="{item.label}{selectedId === id ? ' (selected)' : ''}"
 			ondragstart={(e) => onDragStart(e, id)}
 			ondragend={onDragEnd}
