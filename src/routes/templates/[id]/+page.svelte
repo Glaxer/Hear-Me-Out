@@ -70,26 +70,34 @@
 				{/if}
 			</a>
 		</div>
-		{#if isOwner}
+		<div class="more-actions">
 			<a
 				class="btn btn-secondary btn-small"
-				href="/templates/{data.template.id}/edit">Edit template</a
+				href="/templates/new?from={data.template.id}"
+				title="Make your own template, starting from a copy of this one"
+				>Duplicate</a
 			>
-			<form
-				method="POST"
-				action="?/delete"
-				use:enhance={({ cancel }) => {
-					if (
-						!confirm("Delete this template and every tier list made from it?")
-					)
-						cancel();
-				}}
-			>
-				<button class="btn btn-danger btn-small" type="submit"
-					>Delete template</button
+			{#if isOwner}
+				<a
+					class="btn btn-secondary btn-small"
+					href="/templates/{data.template.id}/edit">Edit template</a
 				>
-			</form>
-		{/if}
+				<form
+					method="POST"
+					action="?/delete"
+					use:enhance={({ cancel }) => {
+						if (
+							!confirm("Delete this template and every tier list made from it?")
+						)
+							cancel();
+					}}
+				>
+					<button class="btn btn-danger btn-small" type="submit"
+						>Delete template</button
+					>
+				</form>
+			{/if}
+		</div>
 	</div>
 </div>
 
@@ -222,7 +230,8 @@
 	.actions form {
 		margin: 0;
 	}
-	.main-actions {
+	.main-actions,
+	.more-actions {
 		display: flex;
 		gap: 8px;
 		flex-wrap: wrap;
