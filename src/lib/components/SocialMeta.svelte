@@ -5,12 +5,20 @@
 	 * Title, description and logo that chat apps and social sites show for a link.
 	 * `siteFirst` puts the site name before the title (used on the front page):
 	 * "Hear Me Out · Make, share…" instead of "Make, share… · Hear Me Out".
+	 * `noindex` keeps the page out of search results (unlisted and private pages), while
+	 * link previews in chat apps still work.
 	 */
 	let {
 		title,
 		description,
-		siteFirst = false
-	}: { title: string; description: string; siteFirst?: boolean } = $props();
+		siteFirst = false,
+		noindex = false
+	}: {
+		title: string;
+		description: string;
+		siteFirst?: boolean;
+		noindex?: boolean;
+	} = $props();
 
 	const fullTitle = $derived(
 		siteFirst ? `Hear Me Out · ${title}` : `${title} · Hear Me Out`
@@ -24,6 +32,7 @@
 <svelte:head>
 	<title>{fullTitle}</title>
 	<meta name="description" content={description} />
+	{#if noindex}<meta name="robots" content="noindex" />{/if}
 	<meta property="og:site_name" content="Hear Me Out" />
 	<meta property="og:type" content="website" />
 	<meta property="og:url" content={url} />
