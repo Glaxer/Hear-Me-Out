@@ -321,6 +321,8 @@
 	.save-bar {
 		position: sticky;
 		bottom: 0;
+		/* Above the item cards' number badges and tier labels while scrolling */
+		z-index: 5;
 		display: flex;
 		justify-content: flex-end;
 		align-items: center;
