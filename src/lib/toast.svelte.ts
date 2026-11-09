@@ -72,10 +72,19 @@ export const REDIRECT_TOASTS: Record<
 		kind: "success"
 	},
 	"template-saved": { message: "Template saved.", kind: "success" },
-	"template-deleted": { message: "Template deleted.", kind: "info" },
-	"list-deleted": { message: "Tier list deleted.", kind: "info" },
+	"template-deleted": {
+		title: "Template deleted",
+		message: "It’s gone, along with every ranking made from it.",
+		kind: "success"
+	},
+	"list-deleted": {
+		title: "Ranking deleted",
+		message: "It’s gone for good.",
+		kind: "success"
+	},
 	"account-deleted": {
-		message: "Your account and everything in it has been deleted. Bye for now!",
-		kind: "info"
+		title: "Account deleted",
+		message: "Everything in it has been deleted too. Bye for now!",
+		kind: "success"
 	}
 };
