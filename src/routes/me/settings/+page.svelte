@@ -1,9 +1,12 @@
 <script lang="ts">
+	import { toastFormError } from "$lib/formErrors.svelte";
 	import { enhance } from "$app/forms";
 	import { MIN_PASSWORD_LENGTH } from "$lib/validation";
 	import type { ActionData, PageData } from "./$types";
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
+	// Errors from submitting are shown as toasts, wherever the page is scrolled to
+	toastFormError(() => form);
 
 	let busy = $state<string | null>(null);
 	let confirmText = $state("");
@@ -45,9 +48,6 @@
 		class="form"
 		use:enhance={submitting("username")}
 	>
-		{#if message("username")?.error}<p class="form-error" role="alert">
-				{message("username")?.error}
-			</p>{/if}
 		{#if message("username")?.success}<p class="form-success" role="status">
 				{message("username")?.success}
 			</p>{/if}
@@ -91,9 +91,6 @@
 		class="form"
 		use:enhance={submitting("password")}
 	>
-		{#if message("password")?.error}<p class="form-error" role="alert">
-				{message("password")?.error}
-			</p>{/if}
 		{#if message("password")?.success}<p class="form-success" role="status">
 				{message("password")?.success}
 			</p>{/if}
@@ -168,9 +165,6 @@
 			return submitting("delete")();
 		}}
 	>
-		{#if message("delete")?.error}<p class="form-error" role="alert">
-				{message("delete")?.error}
-			</p>{/if}
 		<div class="field">
 			<label for="delete-confirm"
 				>Type <strong>{data.username}</strong> to confirm</label

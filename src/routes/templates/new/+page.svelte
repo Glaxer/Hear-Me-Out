@@ -1,9 +1,10 @@
 <script lang="ts">
 	import TemplateForm from "$lib/components/TemplateForm.svelte";
 	import { defaultTiers } from "$lib/tiers";
-	import type { ActionData, PageData } from "./$types";
+	import type { PageData } from "./$types";
 
-	let { data, form }: { data: PageData; form: ActionData } = $props();
+	// Errors from saving are shown as toasts by the form itself
+	let { data }: { data: PageData } = $props();
 </script>
 
 <svelte:head><title>New template · Hear Me Out</title></svelte:head>
@@ -25,7 +26,6 @@
 			tiers: defaultTiers(),
 			items: []
 		}}
-		error={form?.error ?? null}
 		submitLabel="Save template & start ranking"
 		cancelHref="/templates"
 	/>

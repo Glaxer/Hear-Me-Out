@@ -1,10 +1,13 @@
 <script lang="ts">
+	import { toastFormError } from "$lib/formErrors.svelte";
 	import OAuthButtons from "$lib/components/OAuthButtons.svelte";
 	import Turnstile, { captchaEnabled } from "$lib/components/Turnstile.svelte";
 	import { page } from "$app/state";
 	import type { ActionData, PageData } from "./$types";
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
+	// Errors from submitting are shown as toasts, wherever the page is scrolled to
+	toastFormError(() => form);
 	let submitting = $state(false);
 	let captchaToken = $state<string | null>(null);
 	let turnstile = $state<Turnstile>();
@@ -49,8 +52,6 @@
 		{action}
 		onsubmit={() => (submitting = true)}
 	>
-		{#if form?.error}<p class="form-error" role="alert">{form.error}</p>{/if}
-
 		<div class="field">
 			<label for="email">Email</label>
 			<input

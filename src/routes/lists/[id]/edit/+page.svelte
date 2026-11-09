@@ -1,8 +1,9 @@
 <script lang="ts">
 	import ListForm from "$lib/components/ListForm.svelte";
-	import type { ActionData, PageData } from "./$types";
+	import type { PageData } from "./$types";
 
-	let { data, form }: { data: PageData; form: ActionData } = $props();
+	// Errors from saving are shown as toasts by the form itself
+	let { data }: { data: PageData } = $props();
 </script>
 
 <svelte:head><title>Edit: {data.list.title} · Hear Me Out</title></svelte:head>
@@ -18,7 +19,6 @@
 	placements={data.list.placements}
 	title={data.list.title}
 	visibility={data.list.visibility}
-	error={form?.error ?? null}
 	submitLabel="Save changes"
 />
 

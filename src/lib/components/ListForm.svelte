@@ -4,6 +4,7 @@
 	import ExportImage from "./ExportImage.svelte";
 	import TierEditor from "./TierEditor.svelte";
 	import { clearRankDraft, saveRankDraft } from "$lib/drafts";
+	import { toastFailure } from "$lib/formErrors.svelte";
 	import { LIST_VISIBILITY } from "$lib/visibility";
 	import type { ExportOptions } from "$lib/exportImage";
 	import type {
@@ -19,7 +20,6 @@
 		placements = {},
 		title = "",
 		visibility = "public",
-		error = null,
 		submitLabel = "Save & get link",
 		draftKey = null,
 		exportInfo = null,
@@ -31,7 +31,6 @@
 		placements?: Placements;
 		title?: string;
 		visibility?: ListVisibility;
-		error?: string | null;
 		submitLabel?: string;
 		/** Template id: keeps an unsaved draft of this ranking in the browser. */
 		draftKey?: string | null;
@@ -108,13 +107,12 @@
 			) {
 				clearRankDraft(draftKey);
 			}
+			toastFailure(result);
 			await update({ reset: false });
 			submitting = false;
 		};
 	}}
 >
-	{#if error}<p class="form-error" role="alert">{error}</p>{/if}
-
 	<div class="meta-fields">
 		<div class="field">
 			<label for="list-title">Title</label>

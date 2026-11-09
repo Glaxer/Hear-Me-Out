@@ -1,9 +1,10 @@
 <script lang="ts">
 	import TemplateForm from "$lib/components/TemplateForm.svelte";
 	import { fromTemplateItem } from "$lib/items";
-	import type { ActionData, PageData } from "./$types";
+	import type { PageData } from "./$types";
 
-	let { data, form }: { data: PageData; form: ActionData } = $props();
+	// Errors from saving are shown as toasts by the form itself
+	let { data }: { data: PageData } = $props();
 </script>
 
 <svelte:head
@@ -30,7 +31,6 @@
 			tiers: data.template.default_tiers,
 			items: data.items.map(fromTemplateItem)
 		}}
-		error={form?.error ?? null}
 		submitLabel="Save changes"
 		cancelHref="/templates/{data.template.id}"
 	/>
