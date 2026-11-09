@@ -53,6 +53,18 @@ function roundOffset(size: number, round: number): number {
 	return offset;
 }
 
+/** Whether some items skip the first round (fewer items than slots). */
+export const hasByes = (seed: Slot[]) => seed.some((s) => s === null);
+
+/**
+ * The round's name as shown to people. With byes, the first round only has the matches that
+ * are actually played, so it's a "Play-in round" in front of the main bracket.
+ */
+export function roundLabel(seed: Slot[], round: number): string {
+	if (round === 0 && hasByes(seed)) return "Play-in round";
+	return roundName(seed.length, round);
+}
+
 /** "Final", "Semi-finals", "Quarter-finals", "Round of 16", … */
 export function roundName(size: number, round: number): string {
 	const matches = matchesInRound(size, round);

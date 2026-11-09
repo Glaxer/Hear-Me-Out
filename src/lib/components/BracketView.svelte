@@ -3,8 +3,9 @@
 	import {
 		champion,
 		matches,
+		hasByes,
 		roundCount,
-		roundName,
+		roundLabel,
 		type Picks,
 		type Slot
 	} from "$lib/bracket";
@@ -33,15 +34,22 @@
 	const byId = $derived(new Map(items.map((i) => [i.id, i])));
 	const size = $derived(seed.length);
 	const all = $derived(matches(seed, picks));
+	// Byes aren't shown: items that skip the play-in round appear straight in the next round
 	const rounds = $derived(
 		Array.from({ length: roundCount(size) }, (_, r) =>
-			all.filter((m) => m.round === r)
+			all.filter((m) => m.round === r && !m.bye)
 		)
 	);
+	const withByes = $derived(hasByes(seed));
 	const winner = $derived(champion(picks));
 </script>
 
-{#snippet entrant(id: string | null, won: boolean, lost: boolean, bye: boolean)}
+{#snippet entrant(
+	id: string | null,
+	won: boolean,
+	lost: boolean,
+	round: number
+)}
 	{@const item = id ? byId.get(id) : null}
 	<span class="entrant" class:won class:lost>
 		{#if item}
@@ -50,7 +58,9 @@
 			{/if}
 			<span class="name">{item.label}</span>
 		{:else}
-			<span class="name muted">{bye ? "Bye" : "—"}</span>
+			<span class="name muted"
+				>{round === 1 && withByes ? "Play-in winner" : "—"}</span
+			>
 		{/if}
 	</span>
 {/snippet}
@@ -58,8 +68,8 @@
 <div class="bracket-scroll">
 	<div class="bracket" style:--rounds={rounds.length + 1}>
 		{#each rounds as round, r (r)}
-			<section class="round" aria-label={roundName(size, r)}>
-				<h3>{roundName(size, r)}</h3>
+			<section class="round" aria-label={roundLabel(seed, r)}>
+				<h3>{roundLabel(seed, r)}</h3>
 				<div class="matches">
 					{#each round as m (m.index)}
 						{@const playable = !!onselect && !m.bye && !!m.a && !!m.b}
@@ -69,24 +79,23 @@
 							role={playable ? "button" : undefined}
 							class="match"
 							class:current={current === m.index}
-							class:bye={m.bye}
 							class:playable
 							onclick={playable ? () => onselect?.(m.index) : undefined}
 							aria-label={playable
-								? `${roundName(size, r)}: ${byId.get(m.a!)?.label} vs ${byId.get(m.b!)?.label}. Change pick`
+								? `${roundLabel(seed, r)}: ${byId.get(m.a!)?.label} vs ${byId.get(m.b!)?.label}. Change pick`
 								: undefined}
 						>
 							{@render entrant(
 								m.a,
 								!!m.winner && m.winner === m.a,
 								!!m.winner && m.winner !== m.a,
-								m.bye
+								r
 							)}
 							{@render entrant(
 								m.b,
 								!!m.winner && m.winner === m.b,
 								!!m.winner && m.winner !== m.b,
-								m.bye
+								r
 							)}
 						</svelte:element>
 					{/each}
@@ -157,9 +166,6 @@
 		color: inherit;
 		font: inherit;
 		text-align: left;
-	}
-	.match.bye {
-		opacity: 0.75;
 	}
 	.match.playable {
 		cursor: pointer;

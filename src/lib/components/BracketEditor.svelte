@@ -5,11 +5,10 @@
 		champion,
 		emptyPicks,
 		matches,
-		matchesInRound,
 		nextOpenMatch,
 		pick,
 		playableCount,
-		roundName,
+		roundLabel,
 		type Picks,
 		type Slot
 	} from "$lib/bracket";
@@ -56,6 +55,10 @@
 	const done = $derived(all.filter((m) => !m.bye && m.winner).length);
 	const playable = $derived(all.filter((m) => !m.bye));
 	const winner = $derived(champion(picks));
+	/** The played matches (no byes) in the current match's round, for "Match 2 of 4". */
+	const roundMatches = $derived(
+		current ? playable.filter((m) => m.round === current.round) : []
+	);
 
 	/** Brief highlight on the chosen card before moving on, so the tap feels confirmed. */
 	let chosen = $state<string | null>(null);
@@ -162,13 +165,12 @@
 					disabled={playable[0]?.index === current.index}>← Back</button
 				>
 				<p class="round-label">
-					<strong>{roundName(seed.length, current.round)}</strong>
-					{#if matchesInRound(seed.length, current.round) > 1}
+					<strong>{roundLabel(seed, current.round)}</strong>
+					{#if roundMatches.length > 1}
 						<span class="muted"
-							>· Match {current.number + 1} of {matchesInRound(
-								seed.length,
-								current.round
-							)}</span
+							>· Match {roundMatches.findIndex(
+								(m) => m.index === current.index
+							) + 1} of {roundMatches.length}</span
 						>
 					{/if}
 				</p>
