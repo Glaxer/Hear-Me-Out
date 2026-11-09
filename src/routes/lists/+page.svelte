@@ -1,5 +1,5 @@
 <script lang="ts">
-	import TierListView from "$lib/components/TierListView.svelte";
+	import RankingPreview from "$lib/components/RankingPreview.svelte";
 	import { visibilityChip } from "$lib/visibility";
 	import type { PageData } from "./$types";
 
@@ -38,11 +38,10 @@
 					</div>
 					{#if chip}<span class="chip">{chip}</span>{/if}
 				</div>
-				<TierListView
-					tiers={list.tiers}
-					placements={list.placements}
+				<RankingPreview
+					{list}
 					items={list.templates?.template_items ?? []}
-					compact
+					bracket={list.templates?.format === "bracket"}
 				/>
 			</a>
 		{/each}

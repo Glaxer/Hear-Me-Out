@@ -1,4 +1,5 @@
 <script lang="ts">
+	import BracketForm from "$lib/components/BracketForm.svelte";
 	import ListForm from "$lib/components/ListForm.svelte";
 	import type { PageData } from "./$types";
 
@@ -11,16 +12,27 @@
 <p class="muted back">
 	<a href="/lists/{data.list.id}">← Back to tier list</a>
 </p>
-<h1>Edit ranking</h1>
-
-<ListForm
-	items={data.items}
-	tiers={data.list.tiers}
-	placements={data.list.placements}
-	title={data.list.title}
-	visibility={data.list.visibility}
-	submitLabel="Save changes"
-/>
+{#if data.template.format === "bracket" && data.template.bracket_seed}
+	<h1>Edit bracket</h1>
+	<BracketForm
+		items={data.items}
+		seed={data.template.bracket_seed}
+		picks={data.list.picks ?? null}
+		title={data.list.title}
+		visibility={data.list.visibility}
+		submitLabel="Save changes"
+	/>
+{:else}
+	<h1>Edit ranking</h1>
+	<ListForm
+		items={data.items}
+		tiers={data.list.tiers}
+		placements={data.list.placements}
+		title={data.list.title}
+		visibility={data.list.visibility}
+		submitLabel="Save changes"
+	/>
+{/if}
 
 <style>
 	.back {

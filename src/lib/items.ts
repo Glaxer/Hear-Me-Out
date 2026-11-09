@@ -52,13 +52,14 @@ export async function imagesToItems(
 	files: File[],
 	spaceLeft: number,
 	onItem: (item: EditableItem) => void,
-	onProgress?: (done: number, total: number) => void
+	onProgress?: (done: number, total: number) => void,
+	max = MAX_ITEMS
 ): Promise<{ added: number; problems: string[] }> {
 	const problems: string[] = [];
 	const accepted = files.slice(0, Math.max(0, spaceLeft));
 	if (accepted.length < files.length) {
 		problems.push(
-			`Only ${MAX_ITEMS} items fit, so ${files.length - accepted.length} file(s) were skipped.`
+			`Only ${max} items fit, so ${files.length - accepted.length} file(s) were skipped.`
 		);
 	}
 

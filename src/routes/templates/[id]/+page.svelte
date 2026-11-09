@@ -5,8 +5,10 @@
 	import ShareLink from "$lib/components/ShareLink.svelte";
 	import SocialMeta from "$lib/components/SocialMeta.svelte";
 	import VerdictSection from "$lib/components/VerdictSection.svelte";
+	import ChampionTally from "$lib/components/ChampionTally.svelte";
+	import RankingPreview from "$lib/components/RankingPreview.svelte";
 	import { visibilityChip } from "$lib/visibility";
-	import TierListView from "$lib/components/TierListView.svelte";
+
 	import type { PageData } from "./$types";
 
 	let { data }: { data: PageData } = $props();
@@ -19,6 +21,8 @@
 		)
 	);
 	const unlisted = $derived(data.template.visibility === "unlisted");
+	const isBracket = $derived(data.template.format === "bracket");
+	const noun = $derived(isBracket ? "bracket" : "ranking");
 	let showItems = $state(false);
 </script>
 
@@ -26,13 +30,16 @@
 	title={data.template.title}
 	noindex={unlisted}
 	description={data.template.description ||
-		`Rank ${data.items.length} items, then see how your picks compare with everyone else’s.`}
+		(isBracket
+			? `A ${data.items.length}-item tournament bracket. Pick the winners, then see who everyone else crowned.`
+			: `Rank ${data.items.length} items, then see how your picks compare with everyone else’s.`)}
 />
 
 <div class="head">
 	<div>
 		<p class="row crumbs">
 			<span class="chip">{data.template.category}</span>
+			{#if isBracket}<span class="chip">Bracket</span>{/if}
 			{#if unlisted}<span class="chip">Link only</span>{/if}
 			<span class="muted"
 				>by {data.template.profiles?.username ?? "someone"}</span
@@ -46,7 +53,7 @@
 	<div class="actions">
 		<div class="main-actions">
 			<span
-				title="Anyone with this link can make their own ranking{unlisted
+				title="Anyone with this link can make their own {noun}{unlisted
 					? '. This template is hidden from browse and search, so the link is the only way in.'
 					: '.'}"
 			>
@@ -56,7 +63,11 @@
 				/>
 			</span>
 			<a class="btn" href="/templates/{data.template.id}/rank">
-				{mine.length ? "Make another ranking" : "Rank this"}
+				{#if isBracket}
+					{mine.length ? "Fill it out again" : "Fill out the bracket"}
+				{:else}
+					{mine.length ? "Make another ranking" : "Rank this"}
+				{/if}
 			</a>
 		</div>
 		{#if isOwner}
@@ -82,16 +93,27 @@
 	</div>
 </div>
 
-<VerdictSection
-	status={data.verdictState}
-	verdict={data.verdict}
-	items={data.items}
-	rankingCount={data.rankingCount}
-	minRankings={data.minRankings}
-	templateId={data.template.id}
-	templateTitle={data.template.title}
-	loggedIn={!!data.user}
-/>
+{#if isBracket}
+	<ChampionTally
+		status={data.viewerHasRanked ? "ready" : "locked"}
+		tally={data.tally}
+		total={data.rankingCount}
+		items={data.items}
+		templateId={data.template.id}
+		loggedIn={!!data.user}
+	/>
+{:else}
+	<VerdictSection
+		status={data.verdictState}
+		verdict={data.verdict}
+		items={data.items}
+		rankingCount={data.rankingCount}
+		minRankings={data.minRankings}
+		templateId={data.template.id}
+		templateTitle={data.template.title}
+		loggedIn={!!data.user}
+	/>
+{/if}
 
 <button
 	class="link-button muted show-items"
@@ -111,7 +133,9 @@
 
 {#if mine.length}
 	<section class="section">
-		<div class="section-head"><h2>Your rankings</h2></div>
+		<div class="section-head">
+			<h2>{isBracket ? "Your brackets" : "Your rankings"}</h2>
+		</div>
 		<div class="list-grid">
 			{#each mine as list (list.id)}
 				<a class="card list-card" href="/lists/{list.id}">
@@ -121,12 +145,7 @@
 								>{visibilityChip(list.visibility)}</span
 							>{/if}
 					</div>
-					<TierListView
-						tiers={list.tiers}
-						placements={list.placements}
-						items={data.items}
-						compact
-					/>
+					<RankingPreview {list} items={data.items} bracket={isBracket} />
 				</a>
 			{/each}
 		</div>
@@ -135,13 +154,18 @@
 
 <section class="section">
 	<div class="section-head">
-		<h2>Everyone’s rankings <span class="muted">({others.length})</span></h2>
+		<h2>
+			{isBracket ? "Everyone’s brackets" : "Everyone’s rankings"}
+			<span class="muted">({others.length})</span>
+		</h2>
 	</div>
 	{#if others.length}
 		{#if !data.viewerHasRanked}
 			<p class="muted blur-note">
 				Blurred until you’ve <a href="/templates/{data.template.id}/rank"
-					>made your own ranking</a
+					>{isBracket
+						? "filled out your own bracket"
+						: "made your own ranking"}</a
 				>, so they can’t sway your picks. You can still open one to peek.
 			</p>
 		{/if}
@@ -157,12 +181,7 @@
 						<span class="muted">{list.profiles?.username ?? "someone"}</span>
 					</div>
 					<div class="preview" aria-hidden={!data.viewerHasRanked}>
-						<TierListView
-							tiers={list.tiers}
-							placements={list.placements}
-							items={data.items}
-							compact
-						/>
+						<RankingPreview {list} items={data.items} bracket={isBracket} />
 						{#if !data.viewerHasRanked}
 							<span class="peek">Click to peek</span>
 						{/if}
@@ -172,8 +191,8 @@
 		</div>
 	{:else}
 		<p class="empty">
-			No one else has ranked this yet. Share the link to this page to get
-			opinions!
+			No one else has {isBracket ? "filled this out" : "ranked this"} yet. Share the
+			link to this page to get opinions!
 		</p>
 	{/if}
 </section>

@@ -8,8 +8,11 @@
 	import { toast } from "$lib/toast.svelte";
 	import { ImageError, processImage } from "$lib/upload";
 
-	/** Add, rename, re-image and remove template items. */
-	let { items = $bindable() }: { items: EditableItem[] } = $props();
+	/** Add, rename, re-image and remove template items. `max`: most items allowed. */
+	let {
+		items = $bindable(),
+		max = MAX_ITEMS
+	}: { items: EditableItem[]; max?: number } = $props();
 
 	let dragging = $state(false);
 	let processing = $state<{ done: number; total: number } | null>(null);
@@ -18,7 +21,7 @@
 	let bulkText = $state("");
 	let fileInput = $state<HTMLInputElement>();
 
-	const spaceLeft = $derived(MAX_ITEMS - items.length);
+	const spaceLeft = $derived(max - items.length);
 
 	/** Shrinks each image and adds it as an item named after the file. */
 	async function addFiles(files: File[]) {
@@ -28,7 +31,8 @@
 			files,
 			spaceLeft,
 			(item) => items.push(item),
-			(done, total) => (processing = { done, total })
+			(done, total) => (processing = { done, total }),
+			max
 		);
 		processing = null;
 		problems = result.problems;
@@ -245,7 +249,7 @@
 	<!-- The items -->
 	<div class="items-head">
 		<span class="field-label">Items</span>
-		<span class="muted">{items.length}/{MAX_ITEMS}</span>
+		<span class="muted">{items.length}/{max}</span>
 	</div>
 
 	{#if items.length}

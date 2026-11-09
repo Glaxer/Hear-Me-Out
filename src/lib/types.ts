@@ -8,6 +8,8 @@ export interface Tier {
 export type Placements = Record<string, string[]>;
 
 export type TemplateVisibility = "public" | "unlisted";
+/** tier_list: rank items into tiers; bracket: a knockout tournament between the items. */
+export type TemplateFormat = "tier_list" | "bracket";
 export type ListVisibility = "public" | "unlisted" | "private";
 
 export interface TemplateItem {
@@ -28,6 +30,11 @@ export interface Template {
 	category: string;
 	default_tiers: Tier[];
 	visibility: TemplateVisibility;
+	format: TemplateFormat;
+	/** Brackets only: random first round, or the order the items were added. */
+	bracket_order: "shuffled" | "ordered";
+	/** Brackets only: the fixed first round (see $lib/bracket). */
+	bracket_seed: (string | null)[] | null;
 	list_count: number;
 	created_at: string;
 	profiles?: { username: string } | null;
@@ -40,6 +47,8 @@ export interface TierList {
 	title: string;
 	tiers: Tier[];
 	placements: Placements;
+	/** Bracket templates only: the winner of every match (see $lib/bracket). */
+	picks?: (string | null)[] | null;
 	visibility: ListVisibility;
 	created_at: string;
 	updated_at: string;

@@ -1,6 +1,11 @@
 import { error, fail, redirect } from "@sveltejs/kit";
 import { IMAGE_BUCKET } from "$lib/images";
-import { isUuid, loadTemplate } from "$lib/server/data";
+import {
+	hasAnyRankings,
+	isUuid,
+	loadTemplate,
+	refreshBracketSeed
+} from "$lib/server/data";
 import { readTemplateForm } from "$lib/server/templateForm";
 import type { Actions, PageServerLoad } from "./$types";
 
@@ -9,7 +14,11 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const { template, items } = await loadTemplate(locals.supabase, params.id);
 	if (template.owner_id !== locals.user?.id)
 		error(403, "Only the person who made this template can edit it");
-	return { template, items };
+	// A bracket's items can't change once someone has filled it out: their picks depend on them
+	const itemsLocked =
+		template.format === "bracket" &&
+		(await hasAnyRankings(locals.supabase, template.id));
+	return { template, items, itemsLocked };
 };
 
 export const actions: Actions = {
@@ -26,8 +35,22 @@ export const actions: Actions = {
 
 		const result = readTemplateForm(await request.formData(), user.id);
 		if (!result.ok) return fail(400, { error: result.error });
-		const { title, description, category, visibility, tiers, items } =
+		const { title, description, category, visibility, bracketOrder, tiers } =
 			result.value;
+		let { items } = result.value;
+		// The format is chosen when the template is made and can't change afterwards
+		const isBracket = template.format === "bracket";
+		const itemsLocked =
+			isBracket && (await hasAnyRankings(locals.supabase, params.id));
+		// Locked: keep the items exactly as they are, whatever the form sent
+		if (itemsLocked)
+			items = existing.map((i) => ({
+				id: i.id,
+				label: i.label,
+				image_path: i.image_path,
+				full_image_path: i.full_image_path ?? null,
+				position: i.position
+			}));
 
 		const existingById = new Map(existing.map((i) => [i.id, i]));
 		const kept = items.filter((i) => i.id && existingById.has(i.id));
@@ -53,7 +76,9 @@ export const actions: Actions = {
 				description,
 				category,
 				visibility,
-				default_tiers: tiers
+				default_tiers: tiers,
+				// Brackets: the order setting can only change while the items can
+				...(isBracket && !itemsLocked ? { bracket_order: bracketOrder } : {})
 			})
 			.eq("id", params.id);
 		if (templateError)
@@ -109,6 +134,21 @@ export const actions: Actions = {
 			if (err)
 				return fail(500, {
 					error: "Could not add the new items. Please try again."
+				});
+		}
+
+		// Brackets nobody has filled out yet: rebuild the first round if the items or order changed
+		if (isBracket && !itemsLocked) {
+			const ok = await refreshBracketSeed(
+				locals.supabase,
+				params.id,
+				bracketOrder,
+				template.bracket_seed,
+				bracketOrder !== template.bracket_order
+			);
+			if (!ok)
+				return fail(500, {
+					error: "Could not update the bracket. Please try again."
 				});
 		}
 
