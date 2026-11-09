@@ -6,7 +6,6 @@
 	import SocialMeta from "$lib/components/SocialMeta.svelte";
 	import TierListView from "$lib/components/TierListView.svelte";
 	import BracketView from "$lib/components/BracketView.svelte";
-	import ShareLink from "$lib/components/ShareLink.svelte";
 	import { champion } from "$lib/bracket";
 	import { visibilityChip } from "$lib/visibility";
 	import type { PageData } from "./$types";
@@ -21,7 +20,7 @@
 		data.template.format === "bracket" && !!data.template.bracket_seed
 	);
 	const noun = $derived(isBracket ? "bracket" : "ranking");
-	const shareButton = $derived(isBracket ? "Copy link" : "Share");
+	const shareButton = "Share";
 	const championLabel = $derived(
 		isBracket && data.list.picks
 			? data.items.find((i) => i.id === champion(data.list.picks!))?.label
@@ -38,6 +37,10 @@
 		placements: data.list.placements,
 		items: data.items,
 		link: `${page.url.host}/lists/${data.list.id}`,
+		bracket:
+			isBracket && data.template.bracket_seed
+				? { seed: data.template.bracket_seed, picks: data.list.picks ?? [] }
+				: undefined,
 		hotTakes: data.hotTakes?.length
 			? {
 					heading: `${author}’s hottest takes`,
@@ -93,24 +96,18 @@
 		<h1>{data.list.title}</h1>
 	</div>
 	<div class="row">
-		{#if isBracket}
-			{#if data.list.visibility !== "private"}
-				<ShareLink url="{page.url.origin}/lists/{data.list.id}" />
-			{/if}
-		{:else}
-			<ExportImage
-				options={exportOptions}
-				optional={data.hotTakes?.length
-					? { key: "hotTakes", label: "Include hot takes" }
-					: null}
-				shareUrl={data.list.visibility === "private"
-					? null
-					: `${page.url.origin}/lists/${data.list.id}`}
-				noLinkHint={isOwner
-					? "This list is private. Edit it to share a link."
-					: ""}
-			/>
-		{/if}
+		<ExportImage
+			options={exportOptions}
+			optional={!isBracket && data.hotTakes?.length
+				? { key: "hotTakes", label: "Include hot takes" }
+				: null}
+			shareUrl={data.list.visibility === "private"
+				? null
+				: `${page.url.origin}/lists/${data.list.id}`}
+			noLinkHint={isOwner
+				? "This list is private. Edit it to share a link."
+				: ""}
+		/>
 		{#if isOwner}
 			<a class="btn btn-secondary btn-small" href="/lists/{data.list.id}/edit"
 				>Edit</a
