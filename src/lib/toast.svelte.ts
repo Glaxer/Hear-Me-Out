@@ -1,10 +1,20 @@
-export type ToastKind = "success" | "info" | "error";
+/** From mildest to most serious; each has its own colour and icon. */
+export type ToastKind = "success" | "info" | "warning" | "error";
 
 export interface Toast {
 	id: number;
+	title: string;
 	message: string;
 	kind: ToastKind;
 }
+
+/** The bold first line, when a toast doesn't bring its own. */
+export const DEFAULT_TITLES: Record<ToastKind, string> = {
+	success: "Done!",
+	info: "Good to know",
+	warning: "Heads up",
+	error: "Something went wrong"
+};
 
 let nextId = 1;
 
@@ -16,14 +26,15 @@ export function dismissToast(id: number) {
 	if (index >= 0) toasts.splice(index, 1);
 }
 
-/** Shows a short message in the corner of the screen. */
+/** Shows a short message in the corner of the screen, with an optional title. */
 export function toast(
 	message: string,
 	kind: ToastKind = "success",
-	durationMs = 5000
+	durationMs = 5000,
+	title = DEFAULT_TITLES[kind]
 ) {
 	const id = nextId++;
-	toasts.push({ id, message, kind });
+	toasts.push({ id, title, message, kind });
 	setTimeout(() => dismissToast(id), durationMs);
 }
 
@@ -33,11 +44,11 @@ export function toast(
  */
 export const REDIRECT_TOASTS: Record<
 	string,
-	{ message: string; kind: ToastKind; durationMs?: number }
+	{ message: string; kind: ToastKind; durationMs?: number; title?: string }
 > = {
 	welcome: {
-		message:
-			"Your email is confirmed and you’re logged in. Welcome to Hear Me Out!",
+		title: "Welcome to Hear Me Out!",
+		message: "Your email is confirmed and you’re logged in.",
 		kind: "success"
 	},
 	confirmed: {
@@ -51,8 +62,9 @@ export const REDIRECT_TOASTS: Record<
 	},
 	"pwned-password": {
 		message:
-			"You’re logged in. Heads up: your password has appeared in a data breach (found on Have I Been Pwned), so it’s easy for others to guess. We recommend changing it in Settings.",
-		kind: "info",
+			"You’re logged in, but your password has appeared in a data breach (found on Have I Been Pwned), so it’s easy for others to guess. We recommend changing it in Settings.",
+		kind: "warning",
+		title: "Your password isn’t safe",
 		durationMs: 15000
 	},
 	"password-reset": {
