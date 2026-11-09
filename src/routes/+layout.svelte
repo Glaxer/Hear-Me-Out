@@ -42,6 +42,12 @@
 	});
 </script>
 
+<svelte:head>
+	<!-- The one "real" address of every page: without ?toast=…, search terms etc., so search
+	     engines don't count variants of the same page as different pages -->
+	<link rel="canonical" href="{page.url.origin}{page.url.pathname}" />
+</svelte:head>
+
 <header class="site-header">
 	<div class="container header-inner">
 		<a class="logo" href="/" aria-label="Hear Me Out home">

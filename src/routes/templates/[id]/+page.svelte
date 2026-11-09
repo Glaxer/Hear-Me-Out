@@ -24,6 +24,7 @@
 
 <SocialMeta
 	title={data.template.title}
+	noindex={unlisted}
 	description={data.template.description ||
 		`Rank ${data.items.length} items, then see how your picks compare with everyone else’s.`}
 />

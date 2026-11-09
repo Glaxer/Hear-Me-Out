@@ -49,6 +49,8 @@
 
 <SocialMeta
 	title={data.list.title}
+	noindex={data.list.visibility !== "public" ||
+		data.template.visibility !== "public"}
 	description="{author} ranked {rankedCount} {rankedCount === 1
 		? 'item'
 		: 'items'} from “{data.template
