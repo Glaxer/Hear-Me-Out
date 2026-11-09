@@ -116,7 +116,8 @@
 				method="POST"
 				action="?/delete"
 				use:enhance={({ cancel }) => {
-					if (!confirm("Delete this tier list?")) cancel();
+					if (!confirm(`Delete this ${isBracket ? "bracket" : "tier list"}?`))
+						cancel();
 				}}
 			>
 				<button class="btn btn-danger btn-small" type="submit">Delete</button>

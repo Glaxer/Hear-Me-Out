@@ -78,10 +78,10 @@
 	let submitting = $state(false);
 	let status = $state<string | null>(null);
 
-	const titleFor = (f: TemplateFormat) => {
-		const noun = f === "bracket" ? "bracket" : "tier list";
-		return data.username ? `${data.username}’s ${noun}` : `My ${noun}`;
-	};
+	const nounFor = (f: TemplateFormat | undefined) =>
+		f === "bracket" ? "bracket" : "tier list";
+	const titleFor = (f: TemplateFormat) =>
+		data.username ? `${data.username}’s ${nounFor(f)}` : `My ${nounFor(f)}`;
 	const defaultTitle = $derived(titleFor(format));
 	/** Switching format swaps the title too, as long as it's still the suggested one. */
 	function setFormat(next: TemplateFormat) {
@@ -131,7 +131,9 @@
 	}
 
 	async function startOver() {
-		if (!confirm("Start over? This deletes your unfinished tier list.")) return;
+		// While choosing, the draft's format isn't loaded yet
+		const noun = nounFor(phase === "choose" ? found?.format : format);
+		if (!confirm(`Start over? This deletes your unfinished ${noun}.`)) return;
 		await clearQuickDraft();
 		found = null;
 		startFresh();
@@ -271,7 +273,7 @@
 
 <div class="head">
 	<div>
-		<h1>Quick tier list</h1>
+		<h1>{isBracket ? "Quick bracket" : "Quick tier list"}</h1>
 		<p class="muted lead">
 			{#if mode === "rank" && isBracket}
 				Pick the winner of each match.
@@ -299,7 +301,7 @@
 	<p class="muted">Loading…</p>
 {:else if phase === "choose" && found}
 	<div class="card resume">
-		<h2>You have an unfinished tier list</h2>
+		<h2>You have an unfinished {nounFor(found.format)}</h2>
 		<p class="muted">
 			<strong>{found.title || "Untitled"}</strong> · {found.items.length} items. It’s
 			saved in this browser only.
@@ -528,7 +530,7 @@
 				{#if !data.user}
 					<p class="muted note">
 						Want a link to share instead? Log in or sign up to save it. Your
-						list is kept while you do.
+						{nounFor(format)} is kept while you do.
 					</p>
 				{/if}
 				<div class="save-actions">

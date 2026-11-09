@@ -10,7 +10,9 @@
 <svelte:head><title>Edit: {data.list.title} · Hear Me Out</title></svelte:head>
 
 <p class="muted back">
-	<a href="/lists/{data.list.id}">← Back to tier list</a>
+	<a href="/lists/{data.list.id}"
+		>← Back to {data.template.format === "bracket" ? "bracket" : "tier list"}</a
+	>
 </p>
 {#if data.template.format === "bracket" && data.template.bracket_seed}
 	<h1>Edit bracket</h1>

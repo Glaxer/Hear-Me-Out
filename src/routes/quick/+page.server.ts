@@ -27,6 +27,15 @@ export const actions: Actions = {
 		form.set("category", "Other");
 		form.set("description", "");
 
+		// Checked here first: the template form would ask for a "template" title
+		const formTitle = String(form.get("title") ?? "").trim();
+		if (!formTitle || formTitle.length > 100) {
+			const noun = form.get("format") === "bracket" ? "bracket" : "tier list";
+			return fail(400, {
+				error: `Give your ${noun} a title (max 100 characters).`
+			});
+		}
+
 		const result = readTemplateForm(form, user.id);
 		if (!result.ok) return fail(400, { error: result.error });
 		const { title, tiers, items, format, bracketOrder } = result.value;
@@ -81,7 +90,7 @@ export const actions: Actions = {
 			.single();
 		if (error || !template)
 			return fail(500, {
-				error: "Could not save your tier list. Please try again."
+				error: `Could not save your ${isBracket ? "bracket" : "tier list"}. Please try again.`
 			});
 
 		const { data: inserted, error: itemsError } = await locals.supabase
@@ -144,7 +153,7 @@ export const actions: Actions = {
 		if (listError || !list) {
 			await locals.supabase.from("templates").delete().eq("id", template.id);
 			return fail(500, {
-				error: "Could not save your tier list. Please try again."
+				error: `Could not save your ${isBracket ? "bracket" : "tier list"}. Please try again.`
 			});
 		}
 
