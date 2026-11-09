@@ -647,6 +647,8 @@
 	.save-bar {
 		position: sticky;
 		bottom: 0;
+		/* Above the item cards' number badges and tier labels while scrolling */
+		z-index: 5;
 		padding: 16px 0;
 		margin-top: 16px;
 		background: linear-gradient(to top, var(--bg) 70%, transparent);
