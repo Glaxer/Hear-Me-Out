@@ -2,6 +2,14 @@
  * Draws a tier list onto a canvas and returns it as a PNG, entirely in the browser.
  * Everything is drawn by hand (no DOM screenshot), so the result looks the same everywhere.
  */
+import {
+	champion,
+	matches,
+	roundCount,
+	roundName,
+	type Picks,
+	type Slot
+} from "./bracket";
 import { imageUrl } from "./images";
 import { textOn } from "./tiers";
 import type { Placements, TemplateItem, Tier } from "./types";
@@ -28,6 +36,8 @@ export interface ExportOptions {
 		who: string;
 		rows: HotTakeRow[];
 	};
+	/** A filled-out tournament bracket: drawn as a bracket instead of tiers. */
+	bracket?: { seed: Slot[]; picks: Picks };
 }
 
 export interface HotTakeRow {
@@ -380,7 +390,350 @@ function drawLogo(ctx: CanvasRenderingContext2D, x: number, y: number) {
 	});
 }
 
+/** Title, "Glaxer's ranking of …" and the Hear Me Out logo, across the top. */
+function drawHeader(
+	ctx: CanvasRenderingContext2D,
+	opts: ExportOptions,
+	width: number
+) {
+	const noun = opts.bracket ? "bracket" : "ranking";
+	ctx.textAlign = "left";
+	ctx.textBaseline = "alphabetic";
+	ctx.fillStyle = COLORS.ink;
+	const title = fitText(
+		ctx,
+		opts.title,
+		DISPLAY,
+		800,
+		{ w: width - PAD * 2 - 220, h: 56 },
+		48,
+		26,
+		1.05
+	);
+	ctx.font = `800 ${title.size}px ${DISPLAY}`;
+	ctx.fillText(
+		title.lines[0] + (title.lines.length > 1 ? "…" : ""),
+		PAD,
+		PAD + title.size
+	);
+	ctx.font = `500 20px ${BODY}`;
+	ctx.fillStyle = COLORS.inkSoft;
+	const byline =
+		opts.byline ??
+		(opts.templateTitle
+			? opts.author
+				? `${opts.author}’s ${noun} of ${opts.templateTitle}`
+				: `A ${noun} of ${opts.templateTitle}`
+			: opts.author
+				? `By ${opts.author}`
+				: "");
+	if (byline) ctx.fillText(byline, PAD, PAD + title.size + 34);
+
+	drawLogo(ctx, width - PAD - 190, PAD + 6);
+	ctx.font = `800 26px ${DISPLAY}`;
+	ctx.fillStyle = COLORS.ink;
+	ctx.fillText("Hear Me Out", width - PAD - 155, PAD + 29);
+}
+
+/** "Made with Hear Me Out · link" along the bottom. */
+function drawFooter(
+	ctx: CanvasRenderingContext2D,
+	opts: ExportOptions,
+	y: number
+) {
+	ctx.textAlign = "left";
+	ctx.textBaseline = "middle";
+	ctx.font = `500 15px ${BODY}`;
+	ctx.fillStyle = COLORS.inkSoft;
+	ctx.fillText(`Made with Hear Me Out · ${opts.link}`, PAD, y);
+}
+
+/** Draws a picture cover-cropped into a rounded box. */
+function drawCover(
+	ctx: CanvasRenderingContext2D,
+	picture: ImageBitmap,
+	x: number,
+	y: number,
+	w: number,
+	h: number,
+	radius: number
+) {
+	const scale = Math.max(w / picture.width, h / picture.height);
+	const sw = w / scale;
+	const sh = h / scale;
+	ctx.save();
+	ctx.beginPath();
+	ctx.roundRect(x, y, w, h, radius);
+	ctx.clip();
+	ctx.drawImage(
+		picture,
+		(picture.width - sw) / 2,
+		(picture.height - sh) / 2,
+		sw,
+		sh,
+		x,
+		y,
+		w,
+		h
+	);
+	ctx.restore();
+}
+
+function toPng(canvas: HTMLCanvasElement): Promise<Blob> {
+	return new Promise((resolve, reject) =>
+		canvas.toBlob(
+			(b) => (b ? resolve(b) : reject(new Error("Could not create the image"))),
+			"image/png"
+		)
+	);
+}
+
+// Bracket picture: one column per round, each match centred between the two it came from
+const B_COL_W = 220;
+const B_COL_GAP = 32;
+const B_ROW_H = 30;
+const B_MATCH_PAD = 4;
+const B_MATCH_H = B_ROW_H * 2 + B_MATCH_PAD * 2 + 2;
+const B_MATCH_GAP = 12;
+const B_HEAD_H = 34;
+const B_CHAMP_W = 180;
+const B_CHAMP_IMG_H = 270;
+
+async function renderBracketImage(
+	opts: ExportOptions,
+	seed: Slot[],
+	picks: Picks
+): Promise<Blob> {
+	await Promise.all([
+		document.fonts.load(`800 40px ${DISPLAY}`),
+		document.fonts.load(`700 14px ${BODY}`),
+		document.fonts.load(`500 14px ${BODY}`)
+	]).catch(() => undefined);
+
+	const byId = new Map(opts.items.map((i) => [i.id, i]));
+	const size = seed.length;
+	const rounds = roundCount(size);
+	const all = matches(seed, picks);
+	const winnerId = champion(picks);
+	const winner = winnerId ? byId.get(winnerId) : null;
+
+	// Pictures: small thumbnails for the bracket, the large one for the champion
+	const ids = [...new Set(seed.filter((s): s is string => !!s))];
+	const thumbs = new Map(
+		await Promise.all(
+			ids.map(
+				async (id) =>
+					[id, await loadPicture(byId.get(id)?.image_path ?? null)] as const
+			)
+		)
+	);
+	const champPicture = winner
+		? await loadPicture(winner.full_image_path ?? winner.image_path)
+		: null;
+
+	const firstRound = size / 2;
+	const boardH = firstRound * (B_MATCH_H + B_MATCH_GAP) - B_MATCH_GAP;
+	const champH = B_CHAMP_IMG_H + 60;
+	const bodyH = B_HEAD_H + Math.max(boardH, champH);
+	const width = Math.max(
+		WIDTH,
+		PAD * 2 + rounds * (B_COL_W + B_COL_GAP) + B_CHAMP_W
+	);
+	const height = PAD + HEADER_H + bodyH + FOOTER_H + PAD / 2;
+
+	const canvas = document.createElement("canvas");
+	canvas.width = width * SCALE;
+	canvas.height = Math.ceil(height * SCALE);
+	const ctx = canvas.getContext("2d")!;
+	ctx.scale(SCALE, SCALE);
+	ctx.fillStyle = COLORS.bg;
+	ctx.fillRect(0, 0, width, height);
+	drawHeader(ctx, opts, width);
+
+	const top = PAD + HEADER_H;
+	const boardTop = top + B_HEAD_H + Math.max(0, (champH - boardH) / 2);
+	const colX = (r: number) => PAD + r * (B_COL_W + B_COL_GAP);
+
+	// Where each match's centre is: round 1 stacked, later rounds between their two matches
+	const centres: number[][] = [];
+	for (let r = 0; r < rounds; r++) {
+		const count = size / 2 ** (r + 1);
+		centres[r] = Array.from({ length: count }, (_, n) =>
+			r === 0
+				? boardTop + n * (B_MATCH_H + B_MATCH_GAP) + B_MATCH_H / 2
+				: (centres[r - 1][2 * n] + centres[r - 1][2 * n + 1]) / 2
+		);
+	}
+
+	// Round names
+	ctx.textAlign = "left";
+	ctx.textBaseline = "alphabetic";
+	ctx.font = `700 14px ${BODY}`;
+	ctx.fillStyle = COLORS.inkSoft;
+	for (let r = 0; r < rounds; r++)
+		ctx.fillText(roundName(size, r).toUpperCase(), colX(r), top + 18);
+	ctx.fillText("CHAMPION", colX(rounds), top + 18);
+
+	// Lines joining each pair of matches to the match they lead to
+	ctx.strokeStyle = COLORS.line;
+	ctx.lineWidth = 2;
+	for (let r = 1; r < rounds; r++) {
+		centres[r].forEach((cy, n) => {
+			const fromX = colX(r - 1) + B_COL_W;
+			const midX = fromX + B_COL_GAP / 2;
+			const [a, b] = [centres[r - 1][2 * n], centres[r - 1][2 * n + 1]];
+			ctx.beginPath();
+			ctx.moveTo(fromX, a);
+			ctx.lineTo(midX, a);
+			ctx.lineTo(midX, b);
+			ctx.lineTo(fromX, b);
+			ctx.moveTo(midX, cy);
+			ctx.lineTo(colX(r), cy);
+			ctx.stroke();
+		});
+	}
+	// Final -> champion
+	const finalY = centres[rounds - 1][0];
+	ctx.beginPath();
+	ctx.moveTo(colX(rounds - 1) + B_COL_W, finalY);
+	ctx.lineTo(colX(rounds), finalY);
+	ctx.stroke();
+
+	// The matches
+	const entrant = (
+		id: string | null,
+		x: number,
+		y: number,
+		won: boolean,
+		lost: boolean,
+		bye: boolean
+	) => {
+		const item = id ? byId.get(id) : null;
+		ctx.save();
+		if (won) {
+			ctx.fillStyle = COLORS.tileBg;
+			ctx.beginPath();
+			ctx.roundRect(x, y, B_COL_W - B_MATCH_PAD * 2, B_ROW_H, 6);
+			ctx.fill();
+		}
+		if (lost) ctx.globalAlpha = 0.45;
+		let textX = x + 6;
+		const picture = id ? thumbs.get(id) : null;
+		if (picture) {
+			drawCover(ctx, picture, x + 3, y + 3, B_ROW_H - 6, B_ROW_H - 6, 4);
+			textX = x + B_ROW_H + 4;
+		}
+		ctx.textAlign = "left";
+		ctx.textBaseline = "middle";
+		ctx.font = `${won ? 700 : 500} 14px ${BODY}`;
+		ctx.fillStyle = item ? COLORS.ink : COLORS.inkSoft;
+		const label = item ? item.label : bye ? "Bye" : "—";
+		const maxW = x + B_COL_W - B_MATCH_PAD * 2 - 6 - textX;
+		ctx.fillText(clampLines(ctx, [label], 1, maxW)[0], textX, y + B_ROW_H / 2);
+		ctx.restore();
+	};
+	for (const m of all) {
+		const x = colX(m.round);
+		const y = centres[m.round][m.number] - B_MATCH_H / 2;
+		ctx.fillStyle = COLORS.surface;
+		ctx.strokeStyle = COLORS.line;
+		ctx.lineWidth = 1;
+		ctx.beginPath();
+		ctx.roundRect(x, y, B_COL_W, B_MATCH_H, 8);
+		ctx.fill();
+		ctx.stroke();
+		const decided = !!m.winner && !m.bye;
+		entrant(
+			m.a,
+			x + B_MATCH_PAD,
+			y + B_MATCH_PAD,
+			decided && m.winner === m.a,
+			decided && m.winner !== m.a,
+			m.bye
+		);
+		entrant(
+			m.b,
+			x + B_MATCH_PAD,
+			y + B_MATCH_PAD + B_ROW_H + 2,
+			decided && m.winner === m.b,
+			decided && m.winner !== m.b,
+			m.bye
+		);
+	}
+
+	// The champion: big portrait picture with the name and a trophy
+	const cx = colX(rounds);
+	const cardY = finalY - champH / 2;
+	ctx.fillStyle = COLORS.surface;
+	ctx.strokeStyle = COLORS.line;
+	ctx.beginPath();
+	ctx.roundRect(cx, cardY, B_CHAMP_W, champH, 12);
+	ctx.fill();
+	ctx.stroke();
+	const imgX = cx + 12;
+	const imgW = B_CHAMP_W - 24;
+	if (champPicture) {
+		drawCover(ctx, champPicture, imgX, cardY + 12, imgW, B_CHAMP_IMG_H - 12, 8);
+	} else {
+		ctx.fillStyle = COLORS.tileBg;
+		ctx.beginPath();
+		ctx.roundRect(imgX, cardY + 12, imgW, B_CHAMP_IMG_H - 12, 8);
+		ctx.fill();
+		ctx.fillStyle = COLORS.ink;
+		ctx.textAlign = "center";
+		ctx.textBaseline = "middle";
+		if (winner) {
+			const t = fitText(
+				ctx,
+				winner.label,
+				DISPLAY,
+				800,
+				{ w: imgW - 16, h: B_CHAMP_IMG_H - 40 },
+				30,
+				14,
+				1.1
+			);
+			drawLines(
+				ctx,
+				t.lines,
+				imgX + imgW / 2,
+				cardY + 12 + (B_CHAMP_IMG_H - 12) / 2,
+				t.size,
+				1.1
+			);
+		}
+	}
+	ctx.textAlign = "center";
+	ctx.textBaseline = "middle";
+	ctx.font = `700 15px ${BODY}`;
+	ctx.fillStyle = COLORS.ink;
+	// The champion's name under the picture: up to 2 lines
+	const nameLines = winner
+		? clampLines(
+				ctx,
+				wrap(ctx, `🏆 ${winner.label}`, B_CHAMP_W - 24),
+				2,
+				B_CHAMP_W - 24
+			)
+		: ["Not decided yet"];
+	drawLines(
+		ctx,
+		nameLines,
+		cx + B_CHAMP_W / 2,
+		cardY + B_CHAMP_IMG_H + 26,
+		15,
+		1.3
+	);
+
+	drawFooter(ctx, opts, top + bodyH + FOOTER_H / 2 + 6);
+	thumbs.forEach((p) => p?.close());
+	champPicture?.close();
+	return toPng(canvas);
+}
+
 export async function renderTierListImage(opts: ExportOptions): Promise<Blob> {
+	if (opts.bracket)
+		return renderBracketImage(opts, opts.bracket.seed, opts.bracket.picks);
 	// Make sure the site's fonts are ready before measuring or drawing text
 	await Promise.all([
 		document.fonts.load(`800 40px ${DISPLAY}`),
@@ -463,43 +816,7 @@ export async function renderTierListImage(opts: ExportOptions): Promise<Blob> {
 	ctx.fillStyle = COLORS.bg;
 	ctx.fillRect(0, 0, WIDTH, height);
 
-	// Header: title, "Glaxer's ranking of …", logo
-	ctx.textAlign = "left";
-	ctx.textBaseline = "alphabetic";
-	ctx.fillStyle = COLORS.ink;
-	const title = fitText(
-		ctx,
-		opts.title,
-		DISPLAY,
-		800,
-		{ w: WIDTH - PAD * 2 - 220, h: 56 },
-		48,
-		26,
-		1.05
-	);
-	ctx.font = `800 ${title.size}px ${DISPLAY}`;
-	ctx.fillText(
-		title.lines[0] + (title.lines.length > 1 ? "…" : ""),
-		PAD,
-		PAD + title.size
-	);
-	ctx.font = `500 20px ${BODY}`;
-	ctx.fillStyle = COLORS.inkSoft;
-	const byline =
-		opts.byline ??
-		(opts.templateTitle
-			? opts.author
-				? `${opts.author}’s ranking of ${opts.templateTitle}`
-				: `A ranking of ${opts.templateTitle}`
-			: opts.author
-				? `By ${opts.author}`
-				: "");
-	if (byline) ctx.fillText(byline, PAD, PAD + title.size + 34);
-
-	drawLogo(ctx, WIDTH - PAD - 190, PAD + 6);
-	ctx.font = `800 26px ${DISPLAY}`;
-	ctx.fillStyle = COLORS.ink;
-	ctx.fillText("Hear Me Out", WIDTH - PAD - 155, PAD + 29);
+	drawHeader(ctx, opts, WIDTH);
 
 	// Board
 	let y = PAD + HEADER_H;
@@ -653,25 +970,9 @@ export async function renderTierListImage(opts: ExportOptions): Promise<Blob> {
 		y = bottomY + hotBottomH + 8 + ROW_GAP;
 	}
 
-	// Footer
-	ctx.textAlign = "left";
-	ctx.textBaseline = "middle";
-	ctx.font = `500 15px ${BODY}`;
-	ctx.fillStyle = COLORS.inkSoft;
-	ctx.fillText(
-		`Made with Hear Me Out · ${opts.link}`,
-		PAD,
-		y - ROW_GAP + FOOTER_H / 2 + 6
-	);
-
+	drawFooter(ctx, opts, y - ROW_GAP + FOOTER_H / 2 + 6);
 	pictures.forEach((p) => p?.close());
-
-	return new Promise((resolve, reject) =>
-		canvas.toBlob(
-			(b) => (b ? resolve(b) : reject(new Error("Could not create the image"))),
-			"image/png"
-		)
-	);
+	return toPng(canvas);
 }
 
 /** "Glaxer's Tal!" -> "glaxers-tal.png" */

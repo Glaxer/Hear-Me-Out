@@ -2,7 +2,15 @@
 	import { enhance } from "$app/forms";
 	import { onMount, untrack } from "svelte";
 	import BracketEditor from "./BracketEditor.svelte";
-	import { champion, matches, type Picks, type Slot } from "$lib/bracket";
+	import ExportImage from "./ExportImage.svelte";
+	import type { ExportOptions } from "$lib/exportImage";
+	import {
+		champion,
+		emptyPicks,
+		matches,
+		type Picks,
+		type Slot
+	} from "$lib/bracket";
 	import { clearRankDraft, saveRankDraft } from "$lib/drafts";
 	import { showError, toastFailure } from "$lib/formErrors.svelte";
 	import { LIST_VISIBILITY } from "$lib/visibility";
@@ -21,7 +29,8 @@
 		submitLabel = "Save & get link",
 		draftKey = null,
 		guest = false,
-		autoSubmit = false
+		autoSubmit = false,
+		exportInfo = null
 	}: {
 		items: TemplateItem[];
 		seed: Slot[];
@@ -35,6 +44,11 @@
 		guest?: boolean;
 		/** Submit straight away (used when coming back from logging in). */
 		autoSubmit?: boolean;
+		/** Shows "Share" (copy or download a picture of the bracket so far). */
+		exportInfo?: Pick<
+			ExportOptions,
+			"author" | "templateTitle" | "link"
+		> | null;
 	} = $props();
 
 	let submitting = $state(false);
@@ -50,6 +64,21 @@
 			matches(seed, currentPicks).every((m) => m.winner)
 	);
 	const winner = $derived(complete ? champion(currentPicks) : null);
+	const exportOptions = $derived<ExportOptions | null>(
+		exportInfo
+			? {
+					...exportInfo,
+					title: currentTitle.trim() || exportInfo.templateTitle,
+					tiers: [],
+					placements: {},
+					items,
+					bracket: {
+						seed,
+						picks: currentPicks.length ? currentPicks : emptyPicks(seed)
+					}
+				}
+			: null
+	);
 
 	// Keep the draft up to date. Skips the first run, so simply opening the page never
 	// overwrites a draft that the page hasn't loaded yet.
@@ -145,6 +174,10 @@
 				Your champion is in. Save to get a link to share.
 			{/if}
 		</p>
+		{#if exportOptions}<ExportImage
+				options={exportOptions}
+				noLinkHint="Save your bracket to get a link to share."
+			/>{/if}
 		<button class="btn" type="submit" disabled={submitting || !complete}>
 			{submitting ? (guest ? "One moment…" : "Saving…") : submitLabel}
 		</button>

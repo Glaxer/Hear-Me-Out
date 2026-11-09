@@ -76,6 +76,11 @@
 			guest={!data.user}
 			submitLabel={data.user ? "Save & get link" : "Save & share"}
 			{autoSubmit}
+			exportInfo={{
+				author: data.username ?? "",
+				templateTitle: data.template.title,
+				link: `${page.url.host}/templates/${data.template.id}`
+			}}
 		/>
 	{:else}
 		<ListForm
