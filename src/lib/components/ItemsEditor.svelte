@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { tick } from "svelte";
+	import { flip } from "svelte/animate";
 	import {
 		imagesToItems,
 		MAX_ITEMS,
@@ -8,7 +10,11 @@
 	import { toast } from "$lib/toast.svelte";
 	import { ImageError, processImage } from "$lib/upload";
 
-	/** Add, rename, re-image and remove template items. `max`: most items allowed. */
+	/**
+	 * Add, rename, re-image, reorder and remove template items. `max`: most items allowed.
+	 * Reorder by dragging a card's grip handle (mouse or finger), or by focusing the handle
+	 * and using the arrow keys.
+	 */
 	let {
 		items = $bindable(),
 		max = MAX_ITEMS
@@ -127,6 +133,87 @@
 				`Added ${labels.length} ${labels.length === 1 ? "item" : "items"}.`
 			);
 		bulkText = "";
+	}
+
+	// ---------- Reordering ----------
+
+	let grid = $state<HTMLUListElement>();
+	/** The item being dragged by its handle. */
+	let draggingKey = $state<string | null>(null);
+	/** The card the pointer was last over, so each card only triggers one move. */
+	let lastOver: string | null = null;
+
+	function move(from: number, to: number) {
+		if (from === to || from < 0 || to < 0 || to >= items.length) return;
+		const [item] = items.splice(from, 1);
+		items.splice(to, 0, item);
+	}
+
+	function onGripDown(e: PointerEvent, key: string) {
+		if (e.button !== 0) return;
+		e.preventDefault();
+		draggingKey = key;
+		lastOver = key;
+		// Listen on the window: moving the card in the page would end pointer capture on it
+		window.addEventListener("pointermove", onGripMove);
+		window.addEventListener("pointerup", onGripUp);
+		window.addEventListener("pointercancel", onGripUp);
+	}
+
+	/** While dragging: the card jumps into the place of whichever card the pointer is over. */
+	function onGripMove(e: PointerEvent) {
+		if (!draggingKey || !grid) return;
+		// Near the top or bottom of the screen: scroll, so long lists can be reordered too
+		const edge = 60;
+		if (e.clientY < edge) window.scrollBy(0, -14);
+		else if (e.clientY > window.innerHeight - edge) window.scrollBy(0, 14);
+
+		// Compare with where cards sit in the layout (offsetLeft/Top), not where they are drawn
+		// mid-animation, so the cards sliding aside don't confuse which one is under the pointer
+		const box = grid.getBoundingClientRect();
+		const x = e.clientX - box.left;
+		const y = e.clientY - box.top;
+		for (const card of grid.querySelectorAll<HTMLElement>("[data-key]")) {
+			const inside =
+				x >= card.offsetLeft &&
+				x <= card.offsetLeft + card.offsetWidth &&
+				y >= card.offsetTop &&
+				y <= card.offsetTop + card.offsetHeight;
+			if (!inside) continue;
+			const key = card.dataset.key!;
+			if (key === lastOver) return;
+			lastOver = key;
+			if (key !== draggingKey)
+				move(
+					items.findIndex((i) => i.key === draggingKey),
+					items.findIndex((i) => i.key === key)
+				);
+			return;
+		}
+	}
+
+	function onGripUp() {
+		draggingKey = null;
+		lastOver = null;
+		window.removeEventListener("pointermove", onGripMove);
+		window.removeEventListener("pointerup", onGripUp);
+		window.removeEventListener("pointercancel", onGripUp);
+	}
+
+	/** Keyboard: arrow keys move the item one place; focus follows it. */
+	async function onGripKey(e: KeyboardEvent, index: number) {
+		const step =
+			e.key === "ArrowLeft" || e.key === "ArrowUp"
+				? -1
+				: e.key === "ArrowRight" || e.key === "ArrowDown"
+					? 1
+					: 0;
+		if (!step) return;
+		e.preventDefault();
+		const key = items[index].key;
+		move(index, index + step);
+		await tick();
+		grid?.querySelector<HTMLElement>(`[data-key="${key}"] .grip`)?.focus();
 	}
 </script>
 
@@ -253,9 +340,33 @@
 	</div>
 
 	{#if items.length}
-		<ul class="item-grid">
+		<ul class="item-grid" bind:this={grid}>
 			{#each items as item, i (item.key)}
-				<li class="item-card" class:is-new={!item.id}>
+				<li
+					class="item-card"
+					class:is-new={!item.id}
+					class:dragging={draggingKey === item.key}
+					data-key={item.key}
+					animate:flip={{ duration: 180 }}
+				>
+					{#if items.length > 1}
+						<button
+							type="button"
+							class="grip"
+							aria-label="Move {item.label || `item ${i + 1}`} (position {i +
+								1} of {items.length}). Drag, or use the arrow keys."
+							onpointerdown={(e) => onGripDown(e, item.key)}
+							onkeydown={(e) => onGripKey(e, i)}
+						>
+							<svg viewBox="0 0 12 18" aria-hidden="true">
+								{#each [3, 9, 15] as y (y)}
+									<circle cx="3" cy={y} r="1.6" />
+									<circle cx="9" cy={y} r="1.6" />
+								{/each}
+							</svg>
+							<span class="position">{i + 1}</span>
+						</button>
+					{/if}
 					<label
 						class="thumb"
 						title={item.preview ? "Replace image" : "Add an image"}
@@ -402,6 +513,7 @@
 		margin-top: 8px;
 	}
 	.item-grid {
+		position: relative; /* the cards' offsetLeft/Top are measured from here */
 		list-style: none;
 		margin: 0;
 		padding: 0;
@@ -410,6 +522,7 @@
 		gap: 10px;
 	}
 	.item-card {
+		position: relative;
 		display: grid;
 		gap: 6px;
 		padding: 8px;
@@ -417,6 +530,47 @@
 		border-radius: var(--radius-small);
 		background: var(--surface);
 		animation: pop-in 0.18s ease-out;
+	}
+	/* Grip handle in the top-left corner, over the picture */
+	.grip {
+		position: absolute;
+		top: 12px;
+		left: 12px;
+		z-index: 2;
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		padding: 4px 7px 4px 5px;
+		border: none;
+		border-radius: 999px;
+		background: color-mix(in srgb, var(--surface) 88%, transparent);
+		color: var(--ink);
+		font: inherit;
+		font-size: 0.75rem;
+		font-weight: 700;
+		line-height: 1;
+		cursor: grab;
+		touch-action: none; /* dragging with a finger moves the card, not the page */
+		box-shadow: var(--shadow);
+	}
+	.grip svg {
+		width: 9px;
+		height: 14px;
+		fill: currentColor;
+	}
+	.grip:focus-visible {
+		outline: 3px solid var(--focus);
+		outline-offset: 2px;
+	}
+	.item-card.dragging {
+		z-index: 3;
+		border-color: var(--ink);
+		box-shadow:
+			0 0 0 1px var(--ink),
+			var(--shadow);
+	}
+	.item-card.dragging .grip {
+		cursor: grabbing;
 	}
 	.thumb {
 		position: relative;

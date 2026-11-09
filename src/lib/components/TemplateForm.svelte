@@ -2,7 +2,7 @@
 	import { enhance } from "$app/forms";
 	import ItemsEditor from "./ItemsEditor.svelte";
 	import ItemTile from "./ItemTile.svelte";
-	import { MAX_BRACKET_ITEMS, type BracketOrder } from "$lib/bracket";
+	import { byeCount, MAX_BRACKET_ITEMS, type BracketOrder } from "$lib/bracket";
 	import TierControls from "./TierControls.svelte";
 	import { showError, toastFailure } from "$lib/formErrors.svelte";
 	import { appendItemsToForm, MAX_ITEMS, type EditableItem } from "$lib/items";
@@ -65,6 +65,8 @@
 	let tiers = $state<Tier[]>(structuredClone(initial.tiers));
 	// svelte-ignore state_referenced_locally
 	let items = $state<EditableItem[]>(initial.items);
+	/** How many items skip the first round of a bracket (a bye). */
+	const byes = $derived(byeCount(items.length));
 	let status = $state<string | null>(null);
 	let submitting = $state(false);
 	// svelte-ignore state_referenced_locally
@@ -228,12 +230,26 @@
 					<span
 						><strong>In the order added</strong>
 						<span class="muted"
-							>1st plays 2nd, 3rd plays 4th, and so on. The last items get the
-							byes.</span
+							>Matches follow the list. With an uneven number of items, the
+							first items skip the first round, like top seeds, so put your
+							favourites first. Drag the items to reorder them.</span
 						></span
 					>
 				</label>
 			</div>
+			{#if items.length >= 2}
+				<p class="muted bye-note">
+					{#if byes === 0}
+						{items.length} items: everyone plays in the first round.
+					{:else}
+						{items.length} items: {byes}
+						{byes === 1 ? "item skips" : "items skip"} the first round ({bracketOrder ===
+						"ordered"
+							? `the first ${byes === 1 ? "one" : byes} in the list`
+							: "picked at random"}).
+					{/if}
+				</p>
+			{/if}
 		</fieldset>
 	{:else}
 		<fieldset class="field">
@@ -357,6 +373,10 @@
 	.order-option:has(input:disabled) {
 		cursor: default;
 		opacity: 0.7;
+	}
+	.bye-note {
+		margin: 8px 0 0;
+		font-size: 0.875rem;
 	}
 	.locked-note {
 		margin: 0 0 10px;

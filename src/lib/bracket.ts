@@ -53,17 +53,9 @@ function roundOffset(size: number, round: number): number {
 	return offset;
 }
 
-/** Whether some items skip the first round (fewer items than slots). */
-export const hasByes = (seed: Slot[]) => seed.some((s) => s === null);
-
-/**
- * The round's name as shown to people. With byes, the first round only has the matches that
- * are actually played, so it's a "Play-in round" in front of the main bracket.
- */
-export function roundLabel(seed: Slot[], round: number): string {
-	if (round === 0 && hasByes(seed)) return "Play-in round";
-	return roundName(seed.length, round);
-}
+/** How many items skip the first round (a bye) with this many items. */
+export const byeCount = (count: number) =>
+	count < 2 ? 0 : bracketSize(count) - count;
 
 /** "Final", "Semi-finals", "Quarter-finals", "Round of 16", … */
 export function roundName(size: number, round: number): string {
@@ -84,8 +76,9 @@ function shuffle<T>(list: T[], random: () => number): T[] {
 
 /**
  * Builds the first round. Shuffled: random order (and so random byes). Ordered: the items'
- * own order, and the last-added items get the byes. Bye matches are spread evenly through
- * the bracket instead of bunching up in one half.
+ * own order, and the first items get the byes, like top seeds in a tournament (so creators put
+ * their favourites first). Bye matches are spread evenly through the bracket instead of
+ * bunching up in one half.
  */
 export function buildSeed(
 	itemIds: string[],
@@ -96,8 +89,8 @@ export function buildSeed(
 	const size = bracketSize(ids.length);
 	const matches = size / 2;
 	const byes = size - ids.length;
-	const playing = ids.slice(0, ids.length - byes);
-	const byeItems = ids.slice(ids.length - byes);
+	const byeItems = ids.slice(0, byes);
+	const playing = ids.slice(byes);
 	const byeAt = new Set(
 		Array.from({ length: byes }, (_, k) =>
 			Math.floor(((k + 0.5) * matches) / byes)

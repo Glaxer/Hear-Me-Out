@@ -8,7 +8,7 @@
 		nextOpenMatch,
 		pick,
 		playableCount,
-		roundLabel,
+		roundName,
 		type Picks,
 		type Slot
 	} from "$lib/bracket";
@@ -165,7 +165,7 @@
 					disabled={playable[0]?.index === current.index}>← Back</button
 				>
 				<p class="round-label">
-					<strong>{roundLabel(seed, current.round)}</strong>
+					<strong>{roundName(seed.length, current.round)}</strong>
 					{#if roundMatches.length > 1}
 						<span class="muted"
 							>· Match {roundMatches.findIndex(
