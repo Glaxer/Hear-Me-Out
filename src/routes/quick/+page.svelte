@@ -7,6 +7,7 @@
 	import SocialMeta from "$lib/components/SocialMeta.svelte";
 	import TierControls from "$lib/components/TierControls.svelte";
 	import TierEditor from "$lib/components/TierEditor.svelte";
+	import { showError, toastFormError } from "$lib/formErrors.svelte";
 	import { appendItemsToForm, MAX_ITEMS, type EditableItem } from "$lib/items";
 	import {
 		clearQuickDraft,
@@ -30,6 +31,7 @@
 	 * No account needed; everything stays in this browser until it's saved.
 	 */
 	let { data, form }: { data: PageData; form: ActionData } = $props();
+	toastFormError(() => form);
 
 	let phase = $state<"loading" | "choose" | "edit">("loading");
 	let found = $state.raw<QuickDraft | null>(null); // an unfinished list, waiting for "Continue / Start over"
@@ -48,7 +50,6 @@
 	let formEl = $state<HTMLFormElement>();
 	let submitting = $state(false);
 	let status = $state<string | null>(null);
-	let clientError = $state<string | null>(null);
 
 	const defaultTitle = $derived(
 		data.username ? `${data.username}’s tier list` : "My tier list"
@@ -167,19 +168,11 @@
 	}
 
 	function goRank() {
-		clientError = null;
-		if (items.length < 2) {
-			clientError = "Add at least two items first.";
-			return;
-		}
-		if (items.some((i) => !i.label.trim())) {
-			clientError = "Every item needs a name.";
-			return;
-		}
-		if (tiers.some((t) => !t.label.trim())) {
-			clientError = "Every tier needs a name.";
-			return;
-		}
+		if (items.length < 2) return showError("Add at least two items first.");
+		if (items.some((i) => !i.label.trim()))
+			return showError("Every item needs a name.");
+		if (tiers.some((t) => !t.label.trim()))
+			return showError("Every tier needs a name.");
 		placements = cleanPlacements();
 		boardKey++;
 		mode = "rank";
@@ -187,7 +180,6 @@
 	}
 
 	function backToSetup() {
-		clientError = null;
 		mode = "setup";
 		window.scrollTo({ top: 0 });
 	}
@@ -253,9 +245,6 @@
 		</div>
 	</div>
 {:else}
-	{#if clientError}<p class="form-error" role="alert">{clientError}</p>{/if}
-	{#if form?.error}<p class="form-error" role="alert">{form.error}</p>{/if}
-
 	{#if mode === "setup"}
 		<div class="setup">
 			<fieldset class="field">
@@ -297,7 +286,6 @@
 			method="POST"
 			bind:this={formEl}
 			use:enhance={async ({ formData, cancel }) => {
-				clientError = null;
 				submitting = true;
 				// Make sure the latest version is kept, e.g. while logging in
 				clearTimeout(saveTimer);
@@ -314,7 +302,9 @@
 							}
 						);
 					} catch (err) {
-						clientError = `Picture upload failed: ${err instanceof Error ? err.message : "unknown error"}`;
+						showError(
+							`Picture upload failed: ${err instanceof Error ? err.message : "unknown error"}`
+						);
 						submitting = false;
 						status = null;
 						cancel();

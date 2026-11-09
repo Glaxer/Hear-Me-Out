@@ -1,9 +1,12 @@
 <script lang="ts">
+	import { toastFormError } from "$lib/formErrors.svelte";
 	import { page } from "$app/state";
 	import Turnstile, { captchaEnabled } from "$lib/components/Turnstile.svelte";
 	import type { ActionData } from "./$types";
 
 	let { form }: { form: ActionData } = $props();
+	// Errors from submitting are shown as toasts, wherever the page is scrolled to
+	toastFormError(() => form);
 	let submitting = $state(false);
 	let captchaToken = $state<string | null>(null);
 	// Bound (not just value=…) so re-rendering on submit can't wipe what was typed
@@ -35,8 +38,6 @@
 		{/if}
 
 		<form class="form" method="POST" onsubmit={() => (submitting = true)}>
-			{#if form?.error}<p class="form-error" role="alert">{form.error}</p>{/if}
-
 			<div class="field">
 				<label for="email">Email</label>
 				<input

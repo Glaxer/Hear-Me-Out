@@ -1,9 +1,12 @@
 <script lang="ts">
+	import { toastFormError } from "$lib/formErrors.svelte";
 	import { enhance } from "$app/forms";
 	import { page } from "$app/state";
 	import type { ActionData, PageData } from "./$types";
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
+	// Errors from submitting are shown as toasts, wherever the page is scrolled to
+	toastFormError(() => form);
 	let submitting = $state(false);
 
 	// Keep ?next=… so the form sends them back to what they were doing
@@ -31,8 +34,6 @@
 			};
 		}}
 	>
-		{#if form?.error}<p class="form-error" role="alert">{form.error}</p>{/if}
-
 		<div class="field">
 			<label for="username">Username</label>
 			<input

@@ -62,7 +62,6 @@
 		placements={draft?.placements ?? {}}
 		title={draft?.title ?? defaultTitle}
 		visibility={draft?.visibility ?? "public"}
-		error={form?.error ?? null}
 		draftKey={data.template.id}
 		guest={!data.user}
 		submitLabel={data.user ? "Save & get link" : "Save & share"}

@@ -1,8 +1,11 @@
 <script lang="ts">
+	import { toastFormError } from "$lib/formErrors.svelte";
 	import { MIN_PASSWORD_LENGTH } from "$lib/validation";
 	import type { ActionData, PageData } from "./$types";
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
+	// Errors from submitting are shown as toasts, wherever the page is scrolled to
+	toastFormError(() => form);
 	let submitting = $state(false);
 </script>
 
@@ -15,8 +18,6 @@
 	</p>
 
 	<form class="form" method="POST" onsubmit={() => (submitting = true)}>
-		{#if form?.error}<p class="form-error" role="alert">{form.error}</p>{/if}
-
 		<!-- Helps password managers save the new password for the right account -->
 		<input
 			type="text"

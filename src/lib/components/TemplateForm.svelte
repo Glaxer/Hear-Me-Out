@@ -2,6 +2,7 @@
 	import { enhance } from "$app/forms";
 	import ItemsEditor from "./ItemsEditor.svelte";
 	import TierControls from "./TierControls.svelte";
+	import { showError, toastFailure } from "$lib/formErrors.svelte";
 	import { appendItemsToForm, type EditableItem } from "$lib/items";
 	import { CATEGORIES } from "$lib/tiers";
 	import { TEMPLATE_VISIBILITY } from "$lib/visibility";
@@ -11,7 +12,6 @@
 	let {
 		userId,
 		initial,
-		error = null,
 		submitLabel,
 		cancelHref
 	}: {
@@ -24,7 +24,6 @@
 			tiers: Tier[];
 			items: EditableItem[];
 		};
-		error?: string | null;
 		submitLabel: string;
 		cancelHref: string;
 	} = $props();
@@ -35,7 +34,6 @@
 	// svelte-ignore state_referenced_locally
 	let items = $state<EditableItem[]>(initial.items);
 	let status = $state<string | null>(null);
-	let clientError = $state<string | null>(null);
 	let submitting = $state(false);
 	// svelte-ignore state_referenced_locally
 	let visibility = $state<TemplateVisibility>(initial.visibility);
@@ -48,15 +46,14 @@
 	class="form wide"
 	method="POST"
 	use:enhance={async ({ formData, cancel }) => {
-		clientError = null;
 		const named = items.filter((i) => i.label.trim());
 		if (named.length !== items.length) {
-			clientError = "Every item needs a name.";
+			showError("Every item needs a name.");
 			cancel();
 			return;
 		}
 		if (items.length < 2) {
-			clientError = "Add at least two items to rank.";
+			showError("Add at least two items to rank.");
 			cancel();
 			return;
 		}
@@ -68,24 +65,23 @@
 			});
 			status = "Saving…";
 		} catch (err) {
-			clientError = `Image upload failed: ${err instanceof Error ? err.message : "unknown error"}`;
+			showError(
+				`Image upload failed: ${err instanceof Error ? err.message : "unknown error"}`
+			);
 			submitting = false;
 			status = null;
 			cancel();
 			return;
 		}
 
-		return async ({ update }) => {
+		return async ({ result, update }) => {
+			toastFailure(result);
 			await update({ reset: false });
 			submitting = false;
 			status = null;
 		};
 	}}
 >
-	{#if error || clientError}
-		<p class="form-error" role="alert">{clientError ?? error}</p>
-	{/if}
-
 	<div class="field">
 		<label for="title">Title</label>
 		<input
