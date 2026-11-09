@@ -271,7 +271,7 @@
 
 <div class="head">
 	<div>
-		<h1>Quick tier list</h1>
+		<h1>{isBracket ? "Quick bracket" : "Quick tier list"}</h1>
 		<p class="muted lead">
 			{#if mode === "rank" && isBracket}
 				Pick the winner of each match.
