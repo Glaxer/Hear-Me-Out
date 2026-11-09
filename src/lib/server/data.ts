@@ -129,7 +129,12 @@ export async function refreshBracketSeed(
 		.eq("template_id", templateId)
 		.order("position");
 	const ids = (items ?? []).map((i) => i.id as string);
-	if (!rebuild && seedMatchesItems(currentSeed, ids)) return true;
+	// "In the order added": the bracket follows the item order, so a reorder changes it too
+	const unchanged =
+		order === "ordered"
+			? JSON.stringify(currentSeed) === JSON.stringify(buildSeed(ids, order))
+			: seedMatchesItems(currentSeed, ids);
+	if (!rebuild && unchanged) return true;
 	const { error } = await supabase
 		.from("templates")
 		.update({ bracket_seed: buildSeed(ids, order) })
