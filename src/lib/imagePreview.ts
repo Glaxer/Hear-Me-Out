@@ -6,10 +6,13 @@ import type { Action } from "svelte/action";
  * when the tile gets keyboard focus. Hidden as soon as the tile is clicked, dragged or the page
  * scrolls, so it never gets in the way of ranking. Touch screens don't get it (no hover).
  *
- * Usage: <button use:imagePreview={{ src, label }}>; pass null for items without a picture.
+ * Usage: <button use:imagePreview={{ src, fullSrc, label }}>; pass null for items without a picture.
  */
 export interface PreviewImage {
+	/** The small picture the tile already shows: loaded already, so the preview appears at once. */
 	src: string;
+	/** The large picture, swapped in once it has downloaded (if the item has one). */
+	fullSrc?: string | null;
 	label: string;
 }
 
@@ -18,10 +21,16 @@ const GAP = 12;
 const MARGIN = 8;
 /** How long to rest on a tile before the preview shows, so sweeping across the board is calm. */
 const DELAY_MS = 250;
+/** Moving straight from one preview to the next tile skips the wait. */
+const WARM_MS = 400;
 
 let box: HTMLDivElement | null = null;
 let img: HTMLImageElement | null = null;
 let caption: HTMLParagraphElement | null = null;
+/** When the last preview was closed; used to skip the wait when moving between tiles. */
+let lastHidden = 0;
+/** Which preview is showing, so a large picture that finishes late doesn't replace a newer one. */
+let showing = 0;
 
 function ensureBox() {
 	if (box) return;
@@ -36,8 +45,16 @@ function ensureBox() {
 
 function show(anchor: HTMLElement, preview: PreviewImage) {
 	ensureBox();
+	const id = ++showing;
 	img!.src = preview.src;
 	caption!.textContent = preview.label;
+	if (preview.fullSrc && preview.fullSrc !== preview.src) {
+		const full = new Image();
+		full.onload = () => {
+			if (id === showing && box?.isConnected) img!.src = full.src;
+		};
+		full.src = preview.fullSrc;
+	}
 	document.body.append(box!);
 
 	// To the right of the tile, or to the left if there's no room; vertically centred on it
@@ -56,6 +73,7 @@ function show(anchor: HTMLElement, preview: PreviewImage) {
 }
 
 function hide() {
+	if (box?.isConnected) lastHidden = Date.now();
 	box?.remove();
 }
 
@@ -73,7 +91,11 @@ export const imagePreview: Action<HTMLElement, PreviewImage | null> = (
 	function onEnter(e: PointerEvent) {
 		if (!preview || e.pointerType !== "mouse") return;
 		clearTimeout(timer);
-		timer = setTimeout(() => preview && show(node, preview), DELAY_MS);
+		const warm = Date.now() - lastHidden < WARM_MS;
+		timer = setTimeout(
+			() => preview && show(node, preview),
+			warm ? 0 : DELAY_MS
+		);
 	}
 	function onFocus() {
 		// Keyboard only: a mouse click also focuses the tile, and shouldn't open the preview

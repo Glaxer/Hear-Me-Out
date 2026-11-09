@@ -70,8 +70,14 @@
 
 	/** The big picture shown on hover (pictures only; text items keep the plain tooltip). */
 	function previewFor(item: TemplateItem): PreviewImage | null {
-		const src = imageUrl(item.full_image_path ?? item.image_path);
-		return src ? { src, label: item.label } : null;
+		const src = imageUrl(item.image_path);
+		return src
+			? {
+					src,
+					fullSrc: imageUrl(item.full_image_path ?? null),
+					label: item.label
+				}
+			: null;
 	}
 	const selectedLabel = $derived(
 		selectedId ? byId.get(selectedId)?.label : null
