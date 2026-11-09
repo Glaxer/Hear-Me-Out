@@ -37,6 +37,33 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
+-- Keep the "Display name" in Supabase's Authentication -> Users list in step with the
+-- site's username (it reads user_metadata.display_name). Runs whenever a username is set or
+-- changed, from any place: signup, /welcome, settings or the dashboard.
+-- Skipped while a Google/Discord account still has its placeholder username, so the name
+-- from Google/Discord stays until they pick a real one.
+create or replace function public.sync_display_name()
+returns trigger
+language plpgsql
+security definer set search_path = ''
+as $$
+begin
+  update auth.users
+  set raw_user_meta_data =
+    coalesce(raw_user_meta_data, '{}'::jsonb) || jsonb_build_object('display_name', new.username)
+  where id = new.id
+    and raw_user_meta_data ->> 'display_name' is distinct from new.username;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_profile_username_set on public.profiles;
+create trigger on_profile_username_set
+  after insert or update of username, needs_username on public.profiles
+  for each row
+  when (not new.needs_username)
+  execute function public.sync_display_name();
+
 -- ---------------------------------------------------------------------
 -- Templates: the thing people rank (e.g. "Cafeteria Food")
 -- default_tiers: [{ "id": "s", "label": "S", "color": "#ff7f7f" }, ...]
