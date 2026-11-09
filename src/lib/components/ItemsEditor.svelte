@@ -12,8 +12,10 @@
 
 	/**
 	 * Add, rename, re-image, reorder and remove template items. `max`: most items allowed.
-	 * Reorder by dragging a card's grip handle (mouse or finger), or by focusing the handle
-	 * and using the arrow keys.
+	 * Reordering:
+	 * - Mouse: press anywhere on a card (not its name field or buttons) and move.
+	 * - Touch: hold a card for a moment until it lifts, then drag (a quick swipe still scrolls).
+	 * - The grip handle drags straight away, and with focus the arrow keys move the card.
 	 */
 	let {
 		items = $bindable(),
@@ -152,6 +154,11 @@
 	function onGripDown(e: PointerEvent, key: string) {
 		if (e.button !== 0) return;
 		e.preventDefault();
+		startDrag(key);
+	}
+
+	function startDrag(key: string) {
+		clearPending();
 		draggingKey = key;
 		lastOver = key;
 		// Listen on the window: moving the card in the page would end pointer capture on it
@@ -159,6 +166,79 @@
 		window.addEventListener("pointerup", onGripUp);
 		window.addEventListener("pointercancel", onGripUp);
 	}
+
+	/** How long to hold a card on a touch screen before it can be dragged. */
+	const HOLD_MS = 350;
+	/** A card that's been pressed, waiting to become a drag (mouse: move; touch: hold). */
+	let pending: {
+		key: string;
+		x: number;
+		y: number;
+		touch: boolean;
+		timer?: ReturnType<typeof setTimeout>;
+	} | null = null;
+	/** The card being held on a touch screen (it shrinks a little while you hold). */
+	let holdingKey = $state<string | null>(null);
+	/** Set once a drag has really started, so the click that ends it doesn't open anything. */
+	let dragged = false;
+
+	function onCardDown(e: PointerEvent, key: string) {
+		if (e.button !== 0 || items.length < 2 || draggingKey) return;
+		const target = e.target as HTMLElement;
+		// The name field and buttons keep working normally
+		if (target.closest(".label-input, button")) return;
+		const touch = e.pointerType !== "mouse";
+		pending = { key, x: e.clientX, y: e.clientY, touch };
+		if (touch) {
+			holdingKey = key;
+			pending.timer = setTimeout(() => {
+				navigator.vibrate?.(15);
+				dragged = true;
+				startDrag(key);
+			}, HOLD_MS);
+		}
+		window.addEventListener("pointermove", onPendingMove);
+		window.addEventListener("pointerup", clearPending);
+		window.addEventListener("pointercancel", clearPending);
+	}
+
+	function onPendingMove(e: PointerEvent) {
+		if (!pending) return;
+		const moved = Math.hypot(e.clientX - pending.x, e.clientY - pending.y);
+		if (pending.touch) {
+			// Moving before the hold is up means scrolling, not dragging
+			if (moved > 10) clearPending();
+		} else if (moved > 6) {
+			dragged = true;
+			startDrag(pending.key);
+			onGripMove(e);
+		}
+	}
+
+	function clearPending() {
+		if (pending?.timer) clearTimeout(pending.timer);
+		pending = null;
+		holdingKey = null;
+		window.removeEventListener("pointermove", onPendingMove);
+		window.removeEventListener("pointerup", clearPending);
+		window.removeEventListener("pointercancel", clearPending);
+	}
+
+	/** Swallows the click that ends a drag, so dropping on a picture doesn't open the file picker. */
+	function swallowClick(e: MouseEvent) {
+		e.preventDefault();
+		e.stopPropagation();
+	}
+
+	// While dragging with a finger, the page mustn't scroll (needs a non-passive listener)
+	$effect(() => {
+		const stopScroll = (e: TouchEvent) => {
+			// Only once dragging: a swipe that starts on a card must still scroll the page
+			if (draggingKey) e.preventDefault();
+		};
+		window.addEventListener("touchmove", stopScroll, { passive: false });
+		return () => window.removeEventListener("touchmove", stopScroll);
+	});
 
 	/** While dragging: the card jumps into the place of whichever card the pointer is over. */
 	function onGripMove(e: PointerEvent) {
@@ -195,6 +275,14 @@
 	function onGripUp() {
 		draggingKey = null;
 		lastOver = null;
+		if (dragged) {
+			dragged = false;
+			window.addEventListener("click", swallowClick, true);
+			setTimeout(
+				() => window.removeEventListener("click", swallowClick, true),
+				0
+			);
+		}
 		window.removeEventListener("pointermove", onGripMove);
 		window.removeEventListener("pointerup", onGripUp);
 		window.removeEventListener("pointercancel", onGripUp);
@@ -338,6 +426,14 @@
 		<span class="field-label">Items</span>
 		<span class="muted">{items.length}/{max}</span>
 	</div>
+	{#if items.length > 1}
+		<p class="muted reorder-hint">
+			<span class="hint-pointer">Drag a card to change the order.</span>
+			<span class="hint-touch"
+				>Hold a card, then drag it to change the order.</span
+			>
+		</p>
+	{/if}
 
 	{#if items.length}
 		<ul class="item-grid" bind:this={grid}>
@@ -346,7 +442,11 @@
 					class="item-card"
 					class:is-new={!item.id}
 					class:dragging={draggingKey === item.key}
+					class:holding={holdingKey === item.key && draggingKey !== item.key}
 					data-key={item.key}
+					onpointerdown={(e) => onCardDown(e, item.key)}
+					oncontextmenu={(e) =>
+						(holdingKey || draggingKey) && e.preventDefault()}
 					animate:flip={{ duration: 180 }}
 				>
 					{#if items.length > 1}
@@ -561,6 +661,37 @@
 	.grip:focus-visible {
 		outline: 3px solid var(--focus);
 		outline-offset: 2px;
+	}
+	/* Cards can be grabbed anywhere except their name field and buttons */
+	.item-card {
+		cursor: grab;
+		-webkit-touch-callout: none;
+		-webkit-user-select: none;
+		user-select: none;
+	}
+	.item-card .label-input {
+		-webkit-user-select: text;
+		user-select: text;
+	}
+	/* Holding on a touch screen: the card sinks a little, then lifts when it can be dragged */
+	.item-card.holding {
+		transform: scale(0.96);
+		transition: transform 0.35s ease;
+	}
+	.reorder-hint {
+		margin: -4px 0 0;
+		font-size: 0.8125rem;
+	}
+	.hint-touch {
+		display: none;
+	}
+	@media (hover: none) and (pointer: coarse) {
+		.hint-pointer {
+			display: none;
+		}
+		.hint-touch {
+			display: inline;
+		}
 	}
 	.item-card.dragging {
 		z-index: 3;
