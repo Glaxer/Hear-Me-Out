@@ -37,7 +37,7 @@ export const actions: Actions = {
 
 		if (err || !data)
 			return fail(500, {
-				error: "Could not save your tier list. Please try again."
+				error: `Could not save your ${template.format === "bracket" ? "bracket" : "tier list"}. Please try again.`
 			});
 		redirect(303, `/lists/${data.id}?saved=1`);
 	}
