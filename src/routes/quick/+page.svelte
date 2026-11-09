@@ -2,6 +2,7 @@
 	import { enhance } from "$app/forms";
 	import { page } from "$app/state";
 	import { onDestroy, onMount, tick } from "svelte";
+	import BracketEditor from "$lib/components/BracketEditor.svelte";
 	import ExportImage from "$lib/components/ExportImage.svelte";
 	import ItemsEditor from "$lib/components/ItemsEditor.svelte";
 	import SocialMeta from "$lib/components/SocialMeta.svelte";
@@ -9,6 +10,17 @@
 	import TierEditor from "$lib/components/TierEditor.svelte";
 	import { showError, toastFormError } from "$lib/formErrors.svelte";
 	import { appendItemsToForm, MAX_ITEMS, type EditableItem } from "$lib/items";
+	import {
+		buildSeed,
+		byeCount,
+		emptyPicks,
+		matches,
+		MAX_BRACKET_ITEMS,
+		seedMatchesItems,
+		type BracketOrder,
+		type Picks,
+		type Slot
+	} from "$lib/bracket";
 	import {
 		clearQuickDraft,
 		loadQuickDraft,
@@ -19,15 +31,17 @@
 	import type {
 		ListVisibility,
 		Placements,
+		TemplateFormat,
 		TemplateItem,
 		Tier
 	} from "$lib/types";
 	import type { ActionData, PageData } from "./$types";
 
 	/**
-	 * Quick tier list, in two steps:
-	 * 1. Setup: the tiers and items, laid out like the template form.
-	 * 2. Rank: the board, with "Share" (picture) and "Save & share" (link).
+	 * Quick tier list or bracket, in two steps:
+	 * 1. Setup: the format, the tiers (or bracket order) and items, like the template form.
+	 * 2. Rank: the board or the match-by-match picker, with "Share" (picture) and
+	 *    "Save & share" (link).
 	 * No account needed; everything stays in this browser until it's saved.
 	 */
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -44,6 +58,19 @@
 	let placements = $state.raw<Placements>({});
 	let items = $state<EditableItem[]>([]);
 	let mode = $state<"setup" | "rank">("setup");
+	// Brackets: the first round (with item keys) is built when going to rank, then kept
+	let format = $state<TemplateFormat>("tier_list");
+	let bracketOrder = $state<BracketOrder>("shuffled");
+	let seed = $state.raw<Slot[] | null>(null);
+	let picks = $state.raw<Picks>([]);
+	const isBracket = $derived(format === "bracket");
+	const maxItems = $derived(isBracket ? MAX_BRACKET_ITEMS : MAX_ITEMS);
+	const byes = $derived(byeCount(items.length));
+	const bracketDone = $derived(
+		!!seed &&
+			picks.length === seed.length - 1 &&
+			matches(seed, picks).every((m) => m.winner)
+	);
 	/** Changes each time the ranking board opens, so it starts from the current state. */
 	let boardKey = $state(0);
 
@@ -51,9 +78,16 @@
 	let submitting = $state(false);
 	let status = $state<string | null>(null);
 
-	const defaultTitle = $derived(
-		data.username ? `${data.username}’s tier list` : "My tier list"
-	);
+	const titleFor = (f: TemplateFormat) => {
+		const noun = f === "bracket" ? "bracket" : "tier list";
+		return data.username ? `${data.username}’s ${noun}` : `My ${noun}`;
+	};
+	const defaultTitle = $derived(titleFor(format));
+	/** Switching format swaps the title too, as long as it's still the suggested one. */
+	function setFormat(next: TemplateFormat) {
+		if (title === titleFor(format)) title = titleFor(next);
+		format = next;
+	}
 
 	// ---------- Draft: load, continue, start over ----------
 
@@ -62,6 +96,10 @@
 		visibility = draft.visibility;
 		tiers = draft.tiers;
 		placements = draft.placements;
+		format = draft.format ?? "tier_list";
+		bracketOrder = draft.bracketOrder ?? "shuffled";
+		seed = draft.seed ?? null;
+		picks = draft.picks ?? [];
 		items = draft.items.map((i) => ({
 			key: i.key,
 			id: null,
@@ -84,6 +122,10 @@
 		tiers = defaultTiers();
 		placements = {};
 		items = [];
+		format = "tier_list";
+		bracketOrder = "shuffled";
+		seed = null;
+		picks = [];
 		mode = "setup";
 		phase = "edit";
 	}
@@ -100,7 +142,8 @@
 		const resume = page.url.searchParams.get("resume") === "1";
 		if (draft && resume && data.user) {
 			// Back from logging in after pressing "Save & share": finish saving straight away
-			if (draft.title === "My tier list") draft.title = defaultTitle;
+			if (draft.title === "My tier list" || draft.title === "My bracket")
+				draft.title = titleFor(draft.format ?? "tier_list");
 			restore(draft);
 			await tick();
 			formEl?.requestSubmit();
@@ -132,13 +175,18 @@
 				label: i.label,
 				thumb: i.blob,
 				full: i.fullBlob
-			}))
+			})),
+			format,
+			bracketOrder,
+			seed,
+			picks
 		};
 	}
 	$effect(() => {
 		if (phase !== "edit") return;
 		// Read everything that should trigger a save
 		void [title, visibility, JSON.stringify(tiers), JSON.stringify(placements)];
+		void [format, bracketOrder, seed, picks];
 		void items.map((i) => [i.key, i.label, i.blob]);
 		clearTimeout(saveTimer);
 		saveTimer = setTimeout(() => saveQuickDraft(snapshot()), 400);
@@ -171,7 +219,22 @@
 		if (items.length < 2) return showError("Add at least two items first.");
 		if (items.some((i) => !i.label.trim()))
 			return showError("Every item needs a name.");
-		if (tiers.some((t) => !t.label.trim()))
+		if (isBracket) {
+			if (items.length > MAX_BRACKET_ITEMS)
+				return showError(
+					`A tournament bracket can have at most ${MAX_BRACKET_ITEMS} items.`
+				);
+			// Build the bracket if there's none yet, or the items or order changed
+			const keys = items.map((i) => i.key);
+			const fits =
+				bracketOrder === "ordered"
+					? JSON.stringify(seed) === JSON.stringify(buildSeed(keys, "ordered"))
+					: seedMatchesItems(seed, keys);
+			if (!fits) {
+				seed = buildSeed(keys, bracketOrder);
+				picks = emptyPicks(seed);
+			}
+		} else if (tiers.some((t) => !t.label.trim()))
 			return showError("Every tier needs a name.");
 		placements = cleanPlacements();
 		boardKey++;
@@ -196,7 +259,8 @@
 		tiers,
 		placements,
 		items: boardItems,
-		link: page.url.host
+		link: page.url.host,
+		bracket: isBracket && seed ? { seed, picks } : undefined
 	});
 </script>
 
@@ -209,13 +273,18 @@
 	<div>
 		<h1>Quick tier list</h1>
 		<p class="muted lead">
-			{#if mode === "rank"}
+			{#if mode === "rank" && isBracket}
+				Pick the winner of each match.
+				{data.user
+					? "Save it to get a link."
+					: "Save it as an image, no account needed."}
+			{:else if mode === "rank"}
 				Drag the items into the tiers.
 				{data.user
 					? "Save it to get a link."
 					: "Save it as an image, no account needed."}
 			{:else}
-				Set up your tiers and add the pictures or names you want to rank.
+				Pick a format and add the pictures or names you want to rank.
 			{/if}
 		</p>
 	</div>
@@ -248,22 +317,94 @@
 	{#if mode === "setup"}
 		<div class="setup">
 			<fieldset class="field">
-				<legend class="field-label">Tiers</legend>
-				<small
-					>Rename, recolour or reorder them. You can still change them while
-					ranking.</small
-				>
-				<TierControls bind:tiers />
+				<legend class="field-label">Format</legend>
+				<div class="formats">
+					{#each [{ value: "tier_list", label: "Tier list", hint: "Sort the items into tiers, from S to D." }, { value: "bracket", label: "Tournament bracket", hint: "Items face off two at a time until one winner is left." }] as f (f.value)}
+						<label class="option" class:chosen={format === f.value}>
+							<input
+								type="radio"
+								name="quick_format"
+								value={f.value}
+								checked={format === f.value}
+								onchange={() => setFormat(f.value as TemplateFormat)}
+							/>
+							<span class="option-text">
+								<strong>{f.label}</strong>
+								<span class="muted">{f.hint}</span>
+							</span>
+						</label>
+					{/each}
+				</div>
 			</fieldset>
 
-			<ItemsEditor bind:items />
+			{#if isBracket}
+				<fieldset class="field">
+					<legend class="field-label">Bracket</legend>
+					<div class="orders">
+						<label class="option">
+							<input
+								type="radio"
+								name="quick_order"
+								value="shuffled"
+								bind:group={bracketOrder}
+							/>
+							<span class="option-text"
+								><strong>Shuffle</strong>
+								<span class="muted"
+									>A random first round. With an uneven number of items, random
+									items skip the first round (a bye).</span
+								></span
+							>
+						</label>
+						<label class="option">
+							<input
+								type="radio"
+								name="quick_order"
+								value="ordered"
+								bind:group={bracketOrder}
+							/>
+							<span class="option-text"
+								><strong>In the order added</strong>
+								<span class="muted"
+									>Matches follow the list. The first items skip the first round
+									if needed, so put your favourites first.</span
+								></span
+							>
+						</label>
+					</div>
+					{#if items.length >= 2}
+						<p class="muted bye-note">
+							{#if byes === 0}
+								{items.length} items: everyone plays in the first round.
+							{:else}
+								{items.length} items: {byes}
+								{byes === 1 ? "item skips" : "items skip"} the first round ({bracketOrder ===
+								"ordered"
+									? `the first ${byes === 1 ? "one" : byes} in the list`
+									: "picked at random"}).
+							{/if}
+						</p>
+					{/if}
+				</fieldset>
+			{:else}
+				<fieldset class="field">
+					<legend class="field-label">Tiers</legend>
+					<small
+						>Rename, recolour or reorder them. You can still change them while
+						ranking.</small
+					>
+					<TierControls bind:tiers />
+				</fieldset>
+			{/if}
+
+			<ItemsEditor bind:items max={maxItems} />
 		</div>
 
 		<div class="save-bar">
 			<span class="muted"
 				>{items.length < 2
 					? "Add at least two items to rank them."
-					: `${items.length} items, up to ${MAX_ITEMS}.`}</span
+					: `${items.length} items, up to ${maxItems}.`}</span
 			>
 			<button
 				type="button"
@@ -278,7 +419,7 @@
 				type="button"
 				class="link-button muted"
 				onclick={backToSetup}
-				disabled={submitting}>← Back to tiers and items</button
+				disabled={submitting}>← Back to setup</button
 			>
 		</p>
 
@@ -286,6 +427,11 @@
 			method="POST"
 			bind:this={formEl}
 			use:enhance={async ({ formData, cancel }) => {
+				if (isBracket && !bracketDone) {
+					showError("Pick a winner in every match first.");
+					cancel();
+					return;
+				}
 				submitting = true;
 				// Make sure the latest version is kept, e.g. while logging in
 				clearTimeout(saveTimer);
@@ -353,14 +499,30 @@
 				{/if}
 			</div>
 
-			{#key boardKey}
-				<TierEditor
-					items={boardItems}
-					initialTiers={tiers}
-					initialPlacements={placements}
-					onchange={onBoardChange}
-				/>
-			{/key}
+			<input type="hidden" name="format" value={format} />
+			{#if isBracket && seed}
+				<input type="hidden" name="bracket_order" value={bracketOrder} />
+				<input type="hidden" name="bracket_seed" value={JSON.stringify(seed)} />
+				<input type="hidden" name="picks" value={JSON.stringify(picks)} />
+				<input type="hidden" name="tiers" value={JSON.stringify(tiers)} />
+				{#key boardKey}
+					<BracketEditor
+						items={boardItems}
+						{seed}
+						initialPicks={picks}
+						onchange={(p) => (picks = p)}
+					/>
+				{/key}
+			{:else}
+				{#key boardKey}
+					<TierEditor
+						items={boardItems}
+						initialTiers={tiers}
+						initialPlacements={placements}
+						onchange={onBoardChange}
+					/>
+				{/key}
+			{/if}
 
 			<div class="save-bar">
 				{#if !data.user}
@@ -372,9 +534,15 @@
 				<div class="save-actions">
 					<ExportImage
 						options={exportOptions}
-						noLinkHint="Save your tier list to get a link to share."
+						noLinkHint={isBracket
+							? "Save your bracket to get a link to share."
+							: "Save your tier list to get a link to share."}
 					/>
-					<button class="btn" type="submit" disabled={submitting}>
+					<button
+						class="btn"
+						type="submit"
+						disabled={submitting || (isBracket && !bracketDone)}
+					>
 						{status ??
 							(submitting
 								? "One moment…"
@@ -407,6 +575,49 @@
 	.resume h2 {
 		margin: 0 0 6px;
 		font-size: 1.25rem;
+	}
+	.formats {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 10px;
+	}
+	.orders {
+		display: grid;
+		gap: 8px;
+	}
+	.option {
+		display: flex;
+		gap: 10px;
+		align-items: flex-start;
+		padding: 12px 14px;
+		border: 1px solid var(--line);
+		border-radius: var(--radius-small);
+		background: var(--surface);
+		cursor: pointer;
+	}
+	.option.chosen {
+		border-color: var(--ink);
+		box-shadow: inset 0 0 0 1px var(--ink);
+	}
+	.option input {
+		margin-top: 3px;
+		accent-color: var(--accent);
+	}
+	.option-text {
+		display: grid;
+		gap: 2px;
+	}
+	.option-text .muted,
+	.bye-note {
+		font-size: 0.875rem;
+	}
+	.bye-note {
+		margin: 8px 0 0;
+	}
+	@media (max-width: 560px) {
+		.formats {
+			grid-template-columns: 1fr;
+		}
 	}
 	/* Same spacing as the template form */
 	.setup {
