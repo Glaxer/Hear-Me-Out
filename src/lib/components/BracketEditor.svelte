@@ -271,7 +271,10 @@
 		align-items: center;
 		gap: 12px;
 		width: 100%;
-		max-width: 640px;
+		/* As big as possible while both portrait cards still fit on the screen:
+		   card height ≈ 1.5 × card width, leaving room for the heading above */
+		max-width: min(760px, calc((100svh - 300px) * 1.33 + 60px));
+		min-width: min(100%, 300px);
 		margin: 0 auto;
 	}
 	.vs {
@@ -308,10 +311,11 @@
 	.pick-card.faded {
 		opacity: 0.4;
 	}
+	/* Portrait, like a poster or cover (2:3) */
 	.pick-img {
 		display: grid;
 		place-items: center;
-		aspect-ratio: 1;
+		aspect-ratio: 2 / 3;
 		border-radius: var(--radius-small);
 		background: var(--surface-2);
 		overflow: hidden;
@@ -319,7 +323,7 @@
 	.pick-img img {
 		width: 100%;
 		height: 100%;
-		object-fit: contain;
+		object-fit: cover;
 	}
 	.pick-text-only {
 		padding: 12px;
@@ -351,9 +355,9 @@
 		margin: 0;
 	}
 	.winner img {
-		width: min(220px, 60vw);
-		aspect-ratio: 1;
-		object-fit: contain;
+		width: min(220px, 55vw);
+		aspect-ratio: 2 / 3;
+		object-fit: cover;
 		border-radius: var(--radius);
 		background: var(--surface-2);
 	}
