@@ -1,4 +1,5 @@
-import type { ListVisibility, Placements, Tier } from "./types";
+import type { BracketOrder, Picks, Slot } from "./bracket";
+import type { ListVisibility, Placements, TemplateFormat, Tier } from "./types";
 
 /**
  * The quick tier list draft, kept in this browser only (one at a time).
@@ -20,6 +21,12 @@ export interface QuickDraft {
 	/** tierId -> item keys */
 	placements: Placements;
 	items: QuickDraftItem[];
+	/** Tier list or bracket (older drafts don't have it: tier list). */
+	format?: TemplateFormat;
+	bracketOrder?: BracketOrder;
+	/** Brackets: the first round and the picks so far, both with item keys. */
+	seed?: Slot[] | null;
+	picks?: Picks;
 	updatedAt: number;
 }
 
