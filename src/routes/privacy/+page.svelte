@@ -7,7 +7,7 @@
 	const issuesUrl = env.PUBLIC_SOURCE_URL
 		? `${env.PUBLIC_SOURCE_URL.replace(/\/$/, "")}/issues`
 		: null;
-	const updated = "14 October 2026";
+	const updated = "9 November 2026";
 </script>
 
 <SocialMeta
@@ -22,7 +22,7 @@
 	<p class="lead">
 		Hear Me Out is a small hobby project. It stores as little as possible: only
 		what it needs to let you log in and to show the tier lists you make. No ads,
-		no tracking, no selling of data.
+		no tracking across sites, no selling of data.
 	</p>
 
 	<h2>What we store</h2>
@@ -46,6 +46,15 @@
 			<strong>Login cookies:</strong> a few cookies that keep you logged in. They’re
 			needed for the site to work, so there’s no cookie banner. There are no analytics
 			or advertising cookies.
+		</li>
+		<li>
+			<strong>Anonymous visitor stats:</strong> we count page views with Vercel Web
+			Analytics to see which pages are used, for example how many people visited the
+			front page, from which country and on what kind of device. It uses no cookies
+			and doesn’t store your IP address. Visitors are told apart by a scrambled code
+			that changes every day, so you can’t be followed from day to day or across other
+			websites. Vercel Speed Insights also measures how fast pages load for visitors,
+			without cookies or personal data.
 		</li>
 		<li>
 			<strong>Technical logs:</strong> like any website, our hosting providers briefly
@@ -81,7 +90,8 @@
 		<li>
 			<strong>Vercel</strong> hosts the website and runs it in Frankfurt. Vercel is
 			a US company and may handle request data (like your IP address) outside the
-			EU, covered by its data protection terms.
+			EU, covered by its data protection terms. Vercel also provides the anonymous
+			visitor stats.
 		</li>
 		<li>
 			<strong>Google and Discord</strong> handle the login if you choose “Continue
