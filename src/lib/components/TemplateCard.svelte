@@ -31,6 +31,7 @@
 	<h3>{template.title}</h3>
 	<div class="meta">
 		<span class="chip">{template.category}</span>
+		{#if template.format === "bracket"}<span class="chip">Bracket</span>{/if}
 		<span class="muted">
 			{template.list_count}
 			{template.list_count === 1 ? "list" : "lists"}

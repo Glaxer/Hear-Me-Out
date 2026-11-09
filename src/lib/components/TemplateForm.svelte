@@ -1,19 +1,28 @@
 <script lang="ts">
 	import { enhance } from "$app/forms";
 	import ItemsEditor from "./ItemsEditor.svelte";
+	import ItemTile from "./ItemTile.svelte";
+	import { MAX_BRACKET_ITEMS, type BracketOrder } from "$lib/bracket";
 	import TierControls from "./TierControls.svelte";
 	import { showError, toastFailure } from "$lib/formErrors.svelte";
-	import { appendItemsToForm, type EditableItem } from "$lib/items";
+	import { appendItemsToForm, MAX_ITEMS, type EditableItem } from "$lib/items";
 	import { CATEGORIES } from "$lib/tiers";
 	import { TEMPLATE_VISIBILITY } from "$lib/visibility";
-	import type { TemplateVisibility, Tier } from "$lib/types";
+	import type { TemplateFormat, TemplateVisibility, Tier } from "$lib/types";
 
-	/** Title, description, category, default tiers and items, shared by "New" and "Edit template". */
+	/**
+	 * Format, title, description, category, default tiers (tier lists) or bracket order
+	 * (brackets), and items. Shared by "New" and "Edit template".
+	 * `formatLocked`: the format can only be picked when making a template.
+	 * `itemsLocked`: a bracket someone has filled out; its items can't change any more.
+	 */
 	let {
 		userId,
 		initial,
 		submitLabel,
-		cancelHref
+		cancelHref,
+		formatLocked = false,
+		itemsLocked = false
 	}: {
 		userId: string;
 		initial: {
@@ -21,12 +30,35 @@
 			description: string;
 			category: string;
 			visibility: TemplateVisibility;
+			format: TemplateFormat;
+			bracketOrder: BracketOrder;
 			tiers: Tier[];
 			items: EditableItem[];
 		};
 		submitLabel: string;
 		cancelHref: string;
+		formatLocked?: boolean;
+		itemsLocked?: boolean;
 	} = $props();
+
+	const FORMATS: { value: TemplateFormat; label: string; hint: string }[] = [
+		{
+			value: "tier_list",
+			label: "Tier list",
+			hint: "Sort the items into tiers, from S to D."
+		},
+		{
+			value: "bracket",
+			label: "Tournament bracket",
+			hint: "Items face off two at a time until one winner is left."
+		}
+	];
+	// svelte-ignore state_referenced_locally
+	let format = $state<TemplateFormat>(initial.format);
+	// svelte-ignore state_referenced_locally
+	let bracketOrder = $state<BracketOrder>(initial.bracketOrder);
+	const isBracket = $derived(format === "bracket");
+	const maxItems = $derived(isBracket ? MAX_BRACKET_ITEMS : MAX_ITEMS);
 
 	// The form owns its state after the first render
 	// svelte-ignore state_referenced_locally
@@ -57,6 +89,13 @@
 			cancel();
 			return;
 		}
+		if (items.length > maxItems) {
+			showError(
+				`A tournament bracket can have at most ${maxItems} items. Remove ${items.length - maxItems} to continue.`
+			);
+			cancel();
+			return;
+		}
 
 		submitting = true;
 		try {
@@ -82,6 +121,33 @@
 		};
 	}}
 >
+	<input type="hidden" name="format" value={format} />
+	{#if formatLocked}
+		<p class="muted format-note">
+			Format: <strong>{FORMATS.find((f) => f.value === format)?.label}</strong>
+		</p>
+	{:else}
+		<fieldset class="field">
+			<legend class="field-label">Format</legend>
+			<div class="formats">
+				{#each FORMATS as f (f.value)}
+					<label class="format-option" class:chosen={format === f.value}>
+						<input
+							type="radio"
+							name="format_choice"
+							value={f.value}
+							bind:group={format}
+						/>
+						<span class="format-text">
+							<strong>{f.label}</strong>
+							<span class="muted">{f.hint}</span>
+						</span>
+					</label>
+				{/each}
+			</div>
+		</fieldset>
+	{/if}
+
 	<div class="field">
 		<label for="title">Title</label>
 		<input
@@ -125,19 +191,94 @@
 		<small>{visibilityHint}</small>
 	</div>
 
-	<fieldset class="field">
-		<legend class="field-label">Tiers</legend>
-		<small
-			>The starting tiers for new rankings. People can still rename or add tiers
-			in their own ranking.</small
-		>
-		<TierControls bind:tiers />
-		<input type="hidden" name="tiers" value={JSON.stringify(tiers)} />
-	</fieldset>
+	<input type="hidden" name="tiers" value={JSON.stringify(tiers)} />
+	{#if isBracket}
+		<fieldset class="field">
+			<legend class="field-label">Bracket</legend>
+			<small
+				>Everyone fills out the same bracket, so results can be compared.{#if itemsLocked}
+					It can’t change any more, because people have filled it out.{/if}</small
+			>
+			<input type="hidden" name="bracket_order" value={bracketOrder} />
+			<div class="orders">
+				<label class="order-option">
+					<input
+						type="radio"
+						name="bracket_order_choice"
+						value="shuffled"
+						bind:group={bracketOrder}
+						disabled={itemsLocked}
+					/>
+					<span
+						><strong>Shuffle</strong>
+						<span class="muted"
+							>A random first round. With an uneven number of items, random
+							items skip the first round (a bye).</span
+						></span
+					>
+				</label>
+				<label class="order-option">
+					<input
+						type="radio"
+						name="bracket_order_choice"
+						value="ordered"
+						bind:group={bracketOrder}
+						disabled={itemsLocked}
+					/>
+					<span
+						><strong>In the order added</strong>
+						<span class="muted"
+							>1st plays 2nd, 3rd plays 4th, and so on. The last items get the
+							byes.</span
+						></span
+					>
+				</label>
+			</div>
+		</fieldset>
+	{:else}
+		<fieldset class="field">
+			<legend class="field-label">Tiers</legend>
+			<small
+				>The starting tiers for new rankings. People can still rename or add
+				tiers in their own ranking.</small
+			>
+			<TierControls bind:tiers />
+		</fieldset>
+	{/if}
 
 	<fieldset class="field">
 		<legend class="visually-hidden">Items</legend>
-		<ItemsEditor bind:items />
+		{#if itemsLocked}
+			<p class="field-label">
+				Items <span class="muted">({items.length})</span>
+			</p>
+			<p class="muted locked-note">
+				The items can’t change once someone has filled out the bracket, because
+				their picks depend on them.
+			</p>
+			<div class="locked-items">
+				{#each items as item (item.key)}
+					<div class="item-tile">
+						<ItemTile
+							item={{
+								id: item.key,
+								label: item.label,
+								image_path: item.imagePath,
+								position: 0
+							}}
+						/>
+					</div>
+				{/each}
+			</div>
+		{:else}
+			<ItemsEditor bind:items max={maxItems} />
+			{#if isBracket && items.length > maxItems}
+				<p class="form-error">
+					A tournament bracket can have at most {maxItems} items. Remove {items.length -
+						maxItems} to continue.
+				</p>
+			{/if}
+		{/if}
 	</fieldset>
 
 	<div class="save-bar">
@@ -170,6 +311,66 @@
 		gap: 16px;
 		padding: 16px 0;
 		background: linear-gradient(to top, var(--bg) 70%, transparent);
+	}
+	.format-note {
+		margin: 0;
+	}
+	.formats {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 10px;
+	}
+	.format-option,
+	.order-option {
+		display: flex;
+		gap: 10px;
+		align-items: flex-start;
+		padding: 12px 14px;
+		border: 1px solid var(--line);
+		border-radius: var(--radius-small);
+		background: var(--surface);
+		cursor: pointer;
+	}
+	.format-option.chosen {
+		border-color: var(--ink);
+		box-shadow: inset 0 0 0 1px var(--ink);
+	}
+	.format-option input,
+	.order-option input {
+		margin-top: 3px;
+		accent-color: var(--accent);
+	}
+	.format-text,
+	.order-option > span {
+		display: grid;
+		gap: 2px;
+	}
+	.format-text .muted,
+	.order-option .muted {
+		font-size: 0.875rem;
+	}
+	.orders {
+		display: grid;
+		gap: 8px;
+		margin-top: 6px;
+	}
+	.order-option:has(input:disabled) {
+		cursor: default;
+		opacity: 0.7;
+	}
+	.locked-note {
+		margin: 0 0 10px;
+		font-size: 0.875rem;
+	}
+	.locked-items {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 4px;
+	}
+	@media (max-width: 560px) {
+		.formats {
+			grid-template-columns: 1fr;
+		}
 	}
 	.visually-hidden {
 		position: absolute;

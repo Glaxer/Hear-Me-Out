@@ -24,7 +24,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		isOwner || (await hasRanked(locals.supabase, template.id, locals.user?.id));
 	let hotTakes: HotTake[] | null = null;
 	let hotTakesState: "locked" | "not-enough" | "ready" = "locked";
-	if (canSee) {
+	// Hot takes compare tiers, so brackets don't have them
+	if (canSee && template.format !== "bracket") {
 		const others = (
 			await loadCountableRankings(locals.supabase, template.id)
 		).filter((l) => l.id !== list.id);

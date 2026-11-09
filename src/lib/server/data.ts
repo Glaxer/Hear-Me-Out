@@ -2,9 +2,10 @@ import { error } from "@sveltejs/kit";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Template, TemplateItem, TierList } from "$lib/types";
 import type { RankingInput } from "$lib/verdict";
+import { buildSeed, seedMatchesItems, type BracketOrder } from "$lib/bracket";
 
 export const TEMPLATE_CARD_SELECT =
-	"id, owner_id, title, description, category, default_tiers, list_count, created_at, profiles(username), template_items(label, image_path, position)";
+	"id, owner_id, title, description, category, default_tiers, format, list_count, created_at, profiles(username), template_items(label, image_path, position)";
 
 export type TemplateCardRow = Template & {
 	template_items: {
@@ -68,14 +69,19 @@ export function isUuid(value: string): boolean {
 export async function loadCountableRankings(
 	supabase: SupabaseClient,
 	templateId: string
-): Promise<(RankingInput & { owner_id: string })[]> {
+): Promise<
+	(RankingInput & { owner_id: string; picks: (string | null)[] | null })[]
+> {
 	const { data } = await supabase
 		.from("tier_lists")
-		.select("id, owner_id, tiers, placements")
+		.select("id, owner_id, tiers, placements, picks")
 		.eq("template_id", templateId)
 		.in("visibility", ["public", "unlisted"])
 		.limit(2000);
-	return (data ?? []) as (RankingInput & { owner_id: string })[];
+	return (data ?? []) as (RankingInput & {
+		owner_id: string;
+		picks: (string | null)[] | null;
+	})[];
 }
 
 /** Whether this user has made any ranking (any visibility) of the template. */
@@ -91,4 +97,42 @@ export async function hasRanked(
 		.eq("template_id", templateId)
 		.eq("owner_id", userId);
 	return (count ?? 0) > 0;
+}
+
+/** Whether anyone has filled out (ranked) this template yet, in any visibility. */
+export async function hasAnyRankings(
+	supabase: SupabaseClient,
+	templateId: string
+): Promise<boolean> {
+	const { count } = await supabase
+		.from("tier_lists")
+		.select("id", { count: "exact", head: true })
+		.eq("template_id", templateId);
+	return (count ?? 0) > 0;
+}
+
+/**
+ * Makes sure a bracket template's first round fits its items. Builds a new one when there is
+ * none, when the items changed, or when `rebuild` is set (e.g. the order setting changed).
+ * Only call this while nobody has filled the bracket out: their picks depend on it.
+ */
+export async function refreshBracketSeed(
+	supabase: SupabaseClient,
+	templateId: string,
+	order: BracketOrder,
+	currentSeed: unknown,
+	rebuild = false
+): Promise<boolean> {
+	const { data: items } = await supabase
+		.from("template_items")
+		.select("id, position")
+		.eq("template_id", templateId)
+		.order("position");
+	const ids = (items ?? []).map((i) => i.id as string);
+	if (!rebuild && seedMatchesItems(currentSeed, ids)) return true;
+	const { error } = await supabase
+		.from("templates")
+		.update({ bracket_seed: buildSeed(ids, order) })
+		.eq("id", templateId);
+	return !error;
 }

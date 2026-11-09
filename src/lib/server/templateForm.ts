@@ -1,6 +1,7 @@
+import { MAX_BRACKET_ITEMS, type BracketOrder } from "$lib/bracket";
 import { MAX_ITEMS } from "$lib/items";
 import { CATEGORIES, parseTiers } from "$lib/tiers";
-import type { TemplateVisibility, Tier } from "$lib/types";
+import type { TemplateFormat, TemplateVisibility, Tier } from "$lib/types";
 import { parseTemplateVisibility } from "$lib/visibility";
 
 export interface ParsedItem {
@@ -17,6 +18,8 @@ export interface ParsedTemplate {
 	description: string;
 	category: string;
 	visibility: TemplateVisibility;
+	format: TemplateFormat;
+	bracketOrder: BracketOrder;
 	tiers: Tier[];
 	items: ParsedItem[];
 }
@@ -31,6 +34,11 @@ export function readTemplateForm(
 	const category = String(form.get("category") ?? "Other");
 	const tiers = parseTiers(form.get("tiers"));
 	const visibility = parseTemplateVisibility(form.get("visibility"));
+	const format: TemplateFormat =
+		form.get("format") === "bracket" ? "bracket" : "tier_list";
+	const bracketOrder: BracketOrder =
+		form.get("bracket_order") === "ordered" ? "ordered" : "shuffled";
+	const maxItems = format === "bracket" ? MAX_BRACKET_ITEMS : MAX_ITEMS;
 
 	const ids = form.getAll("item_id").map((v) => String(v));
 	const labels = form.getAll("item_label").map((v) => String(v).trim());
@@ -53,10 +61,13 @@ export function readTemplateForm(
 		return { ok: false, error: "Every tier needs a name and a colour." };
 	if (labels.length < 2)
 		return { ok: false, error: "Add at least two items to rank." };
-	if (labels.length > MAX_ITEMS)
+	if (labels.length > maxItems)
 		return {
 			ok: false,
-			error: `Templates can have at most ${MAX_ITEMS} items.`
+			error:
+				format === "bracket"
+					? `Brackets can have at most ${maxItems} items.`
+					: `Templates can have at most ${maxItems} items.`
 		};
 	if (labels.some((l) => !l || l.length > 80))
 		return { ok: false, error: "Every item needs a name (max 80 characters)." };
@@ -80,6 +91,15 @@ export function readTemplateForm(
 
 	return {
 		ok: true,
-		value: { title, description, category, visibility, tiers, items }
+		value: {
+			title,
+			description,
+			category,
+			visibility,
+			format,
+			bracketOrder,
+			tiers,
+			items
+		}
 	};
 }

@@ -1,5 +1,5 @@
 import { error, fail, redirect } from "@sveltejs/kit";
-import { readListForm } from "$lib/server/listForm";
+import { readBracketForm, readListForm } from "$lib/server/listForm";
 import { isUuid, loadTemplate } from "$lib/server/data";
 import { needsUsername } from "$lib/server/auth";
 import type { Actions, PageServerLoad } from "./$types";
@@ -21,8 +21,12 @@ export const actions: Actions = {
 			redirect(303, `/welcome?next=${encodeURIComponent(back)}`);
 		}
 
-		const { items } = await loadTemplate(locals.supabase, params.id);
-		const result = readListForm(await request.formData(), items);
+		const { template, items } = await loadTemplate(locals.supabase, params.id);
+		const form = await request.formData();
+		const result =
+			template.format === "bracket"
+				? readBracketForm(form, template.bracket_seed)
+				: readListForm(form, items);
 		if (!result.ok) return fail(400, { error: result.error });
 
 		const { data, error: err } = await locals.supabase

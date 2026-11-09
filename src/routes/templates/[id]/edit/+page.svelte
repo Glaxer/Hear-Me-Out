@@ -15,10 +15,12 @@
 	<a href="/templates/{data.template.id}">← {data.template.title}</a>
 </p>
 <h1>Edit template</h1>
-<p class="muted intro">
-	New items show up as unranked in rankings people have already made. Removing
-	an item also removes it from those rankings.
-</p>
+{#if data.template.format !== "bracket"}
+	<p class="muted intro">
+		New items show up as unranked in rankings people have already made. Removing
+		an item also removes it from those rankings.
+	</p>
+{/if}
 
 {#if data.user}
 	<TemplateForm
@@ -28,10 +30,14 @@
 			description: data.template.description,
 			category: data.template.category,
 			visibility: data.template.visibility,
+			format: data.template.format ?? "tier_list",
+			bracketOrder: data.template.bracket_order ?? "shuffled",
 			tiers: data.template.default_tiers,
 			items: data.items.map(fromTemplateItem)
 		}}
 		submitLabel="Save changes"
+		formatLocked
+		itemsLocked={data.itemsLocked}
 		cancelHref="/templates/{data.template.id}"
 	/>
 {/if}

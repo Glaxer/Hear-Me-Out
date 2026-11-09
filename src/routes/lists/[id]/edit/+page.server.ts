@@ -1,5 +1,5 @@
 import { error, fail, redirect } from "@sveltejs/kit";
-import { readListForm } from "$lib/server/listForm";
+import { readBracketForm, readListForm } from "$lib/server/listForm";
 import { isUuid, loadTemplate, loadTierList } from "$lib/server/data";
 import type { Actions, PageServerLoad } from "./$types";
 
@@ -24,8 +24,15 @@ export const actions: Actions = {
 		if (list.owner_id !== user.id)
 			error(403, "You can only edit your own tier lists");
 
-		const { items } = await loadTemplate(locals.supabase, list.template_id);
-		const result = readListForm(await request.formData(), items);
+		const { template, items } = await loadTemplate(
+			locals.supabase,
+			list.template_id
+		);
+		const form = await request.formData();
+		const result =
+			template.format === "bracket"
+				? readBracketForm(form, template.bracket_seed)
+				: readListForm(form, items);
 		if (!result.ok) return fail(400, { error: result.error });
 
 		const { error: err } = await locals.supabase

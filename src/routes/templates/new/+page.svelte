@@ -11,8 +11,9 @@
 
 <h1>New template</h1>
 <p class="muted intro">
-	A template is the set of things people rank. After you save it, you’ll make
-	your own ranking and get a link to share. You can always add more items later.
+	A template is the set of things people rank, as a tier list or a tournament
+	bracket. After you save it, you’ll make your own ranking and get a link to
+	share. You can always add more items later.
 </p>
 
 {#if data.user}
@@ -23,6 +24,8 @@
 			description: "",
 			category: "Food & Drink",
 			visibility: "public",
+			format: "tier_list",
+			bracketOrder: "shuffled",
 			tiers: defaultTiers(),
 			items: []
 		}}

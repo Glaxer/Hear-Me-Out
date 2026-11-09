@@ -10,6 +10,8 @@ export interface RankDraft {
 	visibility: ListVisibility;
 	tiers: Tier[];
 	placements: Placements;
+	/** Bracket templates: the winner of every match picked so far. */
+	picks?: (string | null)[];
 	savedAt: number;
 }
 

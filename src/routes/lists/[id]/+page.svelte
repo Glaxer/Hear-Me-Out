@@ -5,6 +5,9 @@
 	import HotTakes from "$lib/components/HotTakes.svelte";
 	import SocialMeta from "$lib/components/SocialMeta.svelte";
 	import TierListView from "$lib/components/TierListView.svelte";
+	import BracketView from "$lib/components/BracketView.svelte";
+	import ShareLink from "$lib/components/ShareLink.svelte";
+	import { champion } from "$lib/bracket";
 	import { visibilityChip } from "$lib/visibility";
 	import type { PageData } from "./$types";
 
@@ -14,6 +17,16 @@
 	const justSaved = $derived(page.url.searchParams.has("saved"));
 	const chip = $derived(visibilityChip(data.list.visibility));
 	const author = $derived(data.list.profiles?.username ?? "Someone");
+	const isBracket = $derived(
+		data.template.format === "bracket" && !!data.template.bracket_seed
+	);
+	const noun = $derived(isBracket ? "bracket" : "ranking");
+	const shareButton = $derived(isBracket ? "Copy link" : "Share");
+	const championLabel = $derived(
+		isBracket && data.list.picks
+			? data.items.find((i) => i.id === champion(data.list.picks!))?.label
+			: null
+	);
 	const rankedCount = $derived(
 		new Set(Object.values(data.list.placements).flat()).size
 	);
@@ -51,19 +64,18 @@
 	title={data.list.title}
 	noindex={data.list.visibility !== "public" ||
 		data.template.visibility !== "public"}
-	description="{author} ranked {rankedCount} {rankedCount === 1
-		? 'item'
-		: 'items'} from “{data.template
-		.title}”. Do you agree? Make your own ranking and compare."
+	description={isBracket
+		? `${author}’s champion of “${data.template.title}”: ${championLabel ?? "?"}. Do you agree? Fill out your own bracket and compare.`
+		: `${author} ranked ${rankedCount} ${rankedCount === 1 ? "item" : "items"} from “${data.template.title}”. Do you agree? Make your own ranking and compare.`}
 />
 
 {#if justSaved}
 	<p class="form-success">
 		{#if data.list.visibility === "public"}
-			Saved! Use “Share” to send it to others. Your ranking also shows on the
+			Saved! Use “{shareButton}” to send it to others. Your {noun} also shows on the
 			template page.
 		{:else if data.list.visibility === "unlisted"}
-			Saved! Only people you send the link to can see this ranking. Use “Share”
+			Saved! Only people you send the link to can see this {noun}. Use “{shareButton}”
 			to send it to them.
 		{:else}
 			Saved as private. Only you can see it. Edit it to share it.
@@ -81,18 +93,24 @@
 		<h1>{data.list.title}</h1>
 	</div>
 	<div class="row">
-		<ExportImage
-			options={exportOptions}
-			optional={data.hotTakes?.length
-				? { key: "hotTakes", label: "Include hot takes" }
-				: null}
-			shareUrl={data.list.visibility === "private"
-				? null
-				: `${page.url.origin}/lists/${data.list.id}`}
-			noLinkHint={isOwner
-				? "This list is private. Edit it to share a link."
-				: ""}
-		/>
+		{#if isBracket}
+			{#if data.list.visibility !== "private"}
+				<ShareLink url="{page.url.origin}/lists/{data.list.id}" />
+			{/if}
+		{:else}
+			<ExportImage
+				options={exportOptions}
+				optional={data.hotTakes?.length
+					? { key: "hotTakes", label: "Include hot takes" }
+					: null}
+				shareUrl={data.list.visibility === "private"
+					? null
+					: `${page.url.origin}/lists/${data.list.id}`}
+				noLinkHint={isOwner
+					? "This list is private. Edit it to share a link."
+					: ""}
+			/>
+		{/if}
 		{#if isOwner}
 			<a class="btn btn-secondary btn-small" href="/lists/{data.list.id}/edit"
 				>Edit</a
@@ -110,35 +128,48 @@
 	</div>
 </div>
 
-<p class="muted tip">Click an item to see its picture in full size.</p>
-<TierListView
-	tiers={data.list.tiers}
-	placements={data.list.placements}
-	items={data.items}
-	showUnranked
-	itemHref={(itemId) => `/lists/${data.list.id}/items/${itemId}`}
-/>
+{#if isBracket && data.template.bracket_seed}
+	<BracketView
+		seed={data.template.bracket_seed}
+		picks={data.list.picks ?? []}
+		items={data.items}
+	/>
+{:else}
+	<p class="muted tip">Click an item to see its picture in full size.</p>
+	<TierListView
+		tiers={data.list.tiers}
+		placements={data.list.placements}
+		items={data.items}
+		showUnranked
+		itemHref={(itemId) => `/lists/${data.list.id}/items/${itemId}`}
+	/>
+{/if}
 
-<HotTakes
-	status={data.hotTakesState}
-	takes={data.hotTakes}
-	items={data.items}
-	whose={data.list.profiles?.username ?? "this person"}
-	isOwner={data.isOwner}
-	rankHref="/templates/{data.template.id}/rank"
-/>
+{#if !isBracket}
+	<HotTakes
+		status={data.hotTakesState}
+		takes={data.hotTakes}
+		items={data.items}
+		whose={data.list.profiles?.username ?? "this person"}
+		isOwner={data.isOwner}
+		rankHref="/templates/{data.template.id}/rank"
+	/>
+{/if}
 
 <div class="cta card">
 	<div>
 		<h2>Disagree?</h2>
 		<p class="muted">
-			Make your own ranking of {data.template.title} and compare.
+			{isBracket ? "Fill out your own bracket of" : "Make your own ranking of"}
+			{data.template.title} and compare.
 		</p>
 	</div>
 	<div class="row">
-		<a class="btn" href="/templates/{data.template.id}/rank">Make my ranking</a>
+		<a class="btn" href="/templates/{data.template.id}/rank"
+			>{isBracket ? "Fill out my bracket" : "Make my ranking"}</a
+		>
 		<a class="btn btn-secondary" href="/templates/{data.template.id}"
-			>See all rankings</a
+			>{isBracket ? "See all brackets" : "See all rankings"}</a
 		>
 	</div>
 </div>

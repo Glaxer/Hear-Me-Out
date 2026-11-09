@@ -3,6 +3,7 @@ import { IMAGE_BUCKET } from "$lib/images";
 import { isUuid, loadCountableRankings, loadTemplate } from "$lib/server/data";
 import type { TierList } from "$lib/types";
 import { computeVerdict, VERDICT_MIN_LISTS, type Verdict } from "$lib/verdict";
+import { championTally } from "$lib/bracket";
 import type { Actions, PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ locals, params }) => {
@@ -13,7 +14,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	let query = locals.supabase
 		.from("tier_lists")
 		.select(
-			"id, owner_id, title, tiers, placements, visibility, updated_at, profiles(username)"
+			"id, owner_id, title, tiers, placements, picks, visibility, updated_at, profiles(username)"
 		)
 		.eq("template_id", params.id);
 	// Others' link-only lists stay off this page; your own lists all show
@@ -32,7 +33,10 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		!!locals.user && shownLists.some((l) => l.owner_id === locals.user!.id);
 	let verdict: Verdict | null = null;
 	let verdictState: "locked" | "waiting" | "ready" = "locked";
-	if (viewerHasRanked) {
+	// Brackets: who people picked as the champion (same rule: only once you've filled it out)
+	const isBracket = template.format === "bracket";
+	const tally = isBracket && viewerHasRanked ? championTally(counted) : [];
+	if (viewerHasRanked && !isBracket) {
 		verdictState = counted.length >= VERDICT_MIN_LISTS ? "ready" : "waiting";
 		if (verdictState === "ready") {
 			verdict = computeVerdict(
@@ -49,6 +53,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		lists: shownLists,
 		verdict,
 		verdictState,
+		tally,
 		// Others' rankings are blurred until then too (they can still be opened)
 		viewerHasRanked,
 		rankingCount: counted.length,

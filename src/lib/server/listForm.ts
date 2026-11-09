@@ -1,3 +1,4 @@
+import { parsePicks, type Slot } from "$lib/bracket";
 import { parsePlacements, parseTiers } from "$lib/tiers";
 import type {
 	ListVisibility,
@@ -47,4 +48,38 @@ export function readListForm(
 		};
 
 	return { ok: true, value: { title, visibility, tiers, placements } };
+}
+
+/** Reads and validates a filled-out bracket (the "rank" and "edit" pages of bracket templates). */
+export function readBracketForm(
+	form: FormData,
+	seed: Slot[] | null
+):
+	| {
+			ok: true;
+			value: {
+				title: string;
+				visibility: ListVisibility;
+				tiers: Tier[];
+				placements: Placements;
+				picks: string[];
+			};
+	  }
+	| { ok: false; error: string } {
+	const title = String(form.get("title") ?? "").trim();
+	const visibility = parseListVisibility(form.get("visibility"));
+	if (!title || title.length > 100)
+		return {
+			ok: false,
+			error: "Give your bracket a title (max 100 characters)."
+		};
+	if (!seed)
+		return { ok: false, error: "This bracket isn’t set up yet. Try again." };
+	const picks = parsePicks(form.get("picks"), seed);
+	if (!picks)
+		return { ok: false, error: "Pick a winner in every match first." };
+	return {
+		ok: true,
+		value: { title, visibility, tiers: [], placements: {}, picks }
+	};
 }

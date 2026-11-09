@@ -1,11 +1,20 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import { page } from "$app/state";
+	import BracketForm from "$lib/components/BracketForm.svelte";
 	import ListForm from "$lib/components/ListForm.svelte";
 	import { hasPlacements, loadRankDraft, type RankDraft } from "$lib/drafts";
 	import type { ActionData, PageData } from "./$types";
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
+
+	const isBracket = $derived(data.template.format === "bracket");
+	/** Whether the draft has any of your own picks in it (byes don't count). */
+	const draftHasWork = (d: RankDraft) =>
+		isBracket
+			? (d.picks ?? []).filter(Boolean).length >
+				(data.template.bracket_seed ?? []).filter((s) => s === null).length
+			: hasPlacements(d.placements);
 
 	const guestTitle = $derived(
 		`My ${data.template.title} ranking`.slice(0, 100)
@@ -39,7 +48,7 @@
 	<a href="/templates/{data.template.id}">← {data.template.title}</a>
 </p>
 <div class="title-row">
-	<h1>Your ranking</h1>
+	<h1>{isBracket ? "Your bracket" : "Your ranking"}</h1>
 	{#if data.user?.id === data.template.owner_id}
 		<a
 			class="btn btn-secondary btn-small"
@@ -50,28 +59,42 @@
 
 {#if autoSubmit && !form}
 	<p class="form-success" role="status">Welcome back! Saving your ranking…</p>
-{:else if draft && hasPlacements(draft.placements) && !form?.error}
+{:else if draft && draftHasWork(draft) && !form?.error}
 	<p class="muted restored">Picked up where you left off.</p>
 {/if}
 
 <!-- Re-created once a draft is found, so the editor starts from it -->
 {#key draft}
-	<ListForm
-		items={data.items}
-		tiers={draft?.tiers ?? data.template.default_tiers}
-		placements={draft?.placements ?? {}}
-		title={draft?.title ?? defaultTitle}
-		visibility={draft?.visibility ?? "public"}
-		draftKey={data.template.id}
-		guest={!data.user}
-		submitLabel={data.user ? "Save & get link" : "Save & share"}
-		{autoSubmit}
-		exportInfo={{
-			author: data.username ?? "",
-			templateTitle: data.template.title,
-			link: `${page.url.host}/templates/${data.template.id}`
-		}}
-	/>
+	{#if isBracket && data.template.bracket_seed}
+		<BracketForm
+			items={data.items}
+			seed={data.template.bracket_seed}
+			picks={draft?.picks ?? null}
+			title={draft?.title ?? defaultTitle}
+			visibility={draft?.visibility ?? "public"}
+			draftKey={data.template.id}
+			guest={!data.user}
+			submitLabel={data.user ? "Save & get link" : "Save & share"}
+			{autoSubmit}
+		/>
+	{:else}
+		<ListForm
+			items={data.items}
+			tiers={draft?.tiers ?? data.template.default_tiers}
+			placements={draft?.placements ?? {}}
+			title={draft?.title ?? defaultTitle}
+			visibility={draft?.visibility ?? "public"}
+			draftKey={data.template.id}
+			guest={!data.user}
+			submitLabel={data.user ? "Save & get link" : "Save & share"}
+			{autoSubmit}
+			exportInfo={{
+				author: data.username ?? "",
+				templateTitle: data.template.title,
+				link: `${page.url.host}/templates/${data.template.id}`
+			}}
+		/>
+	{/if}
 {/key}
 
 <style>
