@@ -7,6 +7,8 @@
 	import VerdictSection from "$lib/components/VerdictSection.svelte";
 	import ChampionTally from "$lib/components/ChampionTally.svelte";
 	import RankingPreview from "$lib/components/RankingPreview.svelte";
+	import BracketView from "$lib/components/BracketView.svelte";
+	import { byeCount, emptyPicks } from "$lib/bracket";
 	import { visibilityChip } from "$lib/visibility";
 
 	import type { PageData } from "./$types";
@@ -24,6 +26,12 @@
 	const isBracket = $derived(data.template.format === "bracket");
 	const noun = $derived(isBracket ? "bracket" : "ranking");
 	let showItems = $state(false);
+	// Brackets: the empty first round, so visitors see the items and how the format works.
+	// Open from the start, unless it's big (it's tall and wide).
+	const seed = $derived(data.template.bracket_seed);
+	const byes = $derived(byeCount(data.items.length));
+	// Writable: the button overrides it; it resets when going to another template
+	let showBracket = $derived(data.items.length <= 16);
 </script>
 
 <SocialMeta
@@ -123,20 +131,45 @@
 	/>
 {/if}
 
-<button
-	class="link-button muted show-items"
-	type="button"
-	aria-expanded={showItems}
-	onclick={() => (showItems = !showItems)}
->
-	{showItems ? "Hide" : "Show"} the {data.items.length} items in this template
-</button>
-{#if showItems}
-	<div class="items">
-		{#each data.items as item (item.id)}
-			<div class="item-tile"><ItemTile {item} /></div>
-		{/each}
-	</div>
+{#if isBracket && seed}
+	<section class="bracket-preview" aria-labelledby="bracket-preview-title">
+		<div class="preview-head">
+			<h2 id="bracket-preview-title">The bracket</h2>
+			<button
+				class="link-button muted"
+				type="button"
+				aria-expanded={showBracket}
+				onclick={() => (showBracket = !showBracket)}
+			>
+				{showBracket ? "Hide" : "Show"}
+			</button>
+		</div>
+		<p class="muted preview-note">
+			{data.items.length} items face off two at a time. Pick the winner of each match
+			until one is left.{byes
+				? ` ${byes} ${byes === 1 ? "item skips" : "items skip"} the first round.`
+				: ""}
+		</p>
+		{#if showBracket}
+			<BracketView {seed} picks={emptyPicks(seed)} items={data.items} />
+		{/if}
+	</section>
+{:else}
+	<button
+		class="link-button muted show-items"
+		type="button"
+		aria-expanded={showItems}
+		onclick={() => (showItems = !showItems)}
+	>
+		{showItems ? "Hide" : "Show"} the {data.items.length} items in this template
+	</button>
+	{#if showItems}
+		<div class="items">
+			{#each data.items as item (item.id)}
+				<div class="item-tile"><ItemTile {item} /></div>
+			{/each}
+		</div>
+	{/if}
 {/if}
 
 {#if mine.length}
@@ -239,6 +272,21 @@
 	}
 	.show-items {
 		margin-top: 20px;
+	}
+	.bracket-preview {
+		margin-top: 28px;
+	}
+	.preview-head {
+		display: flex;
+		align-items: baseline;
+		gap: 12px;
+	}
+	.preview-head h2 {
+		margin: 0;
+	}
+	.preview-note {
+		margin: 4px 0 12px;
+		font-size: 0.9375rem;
 	}
 	.items {
 		display: flex;
