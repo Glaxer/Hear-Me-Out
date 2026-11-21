@@ -12,6 +12,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.from("templates")
 			.select(TEMPLATE_CARD_SELECT)
 			.eq("owner_id", user.id)
+			// Templates made by the quick tier list belong with their ranking, not here
+			.eq("is_quick", false)
 			.order("created_at", { ascending: false })
 			.order("position", { referencedTable: "template_items" })
 			.limit(4, { referencedTable: "template_items" }),

@@ -115,6 +115,8 @@ create table public.templates (
   -- brackets only: the first round, fixed so everyone fills out the same bracket.
   -- Two item ids per match, null for a bye: ["<id>", "<id>", "<id>", null, ...]
   bracket_seed jsonb,
+  -- made by the quick tier list (/quick): left out of "My templates"
+  is_quick boolean not null default false,
   list_count integer not null default 0,
   created_at timestamptz not null default now()
 );
