@@ -10,6 +10,7 @@
 		if (data.filters.q) params.set("q", data.filters.q);
 		if (data.filters.category) params.set("category", data.filters.category);
 		if (data.filters.sort !== "popular") params.set("sort", data.filters.sort);
+		if (data.filters.favorites) params.set("favorites", "1");
 		if (page > 1) params.set("page", String(page));
 		const s = params.toString();
 		return s ? `?${s}` : "?";
@@ -39,6 +40,18 @@
 		<option value="popular">Most ranked</option>
 		<option value="new">Newest</option>
 	</select>
+	{#if data.user}
+		<label class="favorites-toggle" class:on={data.filters.favorites}>
+			<input
+				type="checkbox"
+				name="favorites"
+				value="1"
+				checked={data.filters.favorites}
+				onchange={(e) => e.currentTarget.form?.requestSubmit()}
+			/>
+			<span aria-hidden="true">★</span> Favorites
+		</label>
+	{/if}
 	<button class="btn" type="submit">Search</button>
 </form>
 
@@ -47,13 +60,22 @@
 {#if data.templates.length}
 	<div class="card-grid">
 		{#each data.templates as template (template.id)}
-			<TemplateCard {template} previewItems={template.template_items} />
+			<TemplateCard
+				{template}
+				previewItems={template.template_items}
+				favorite={data.favoriteIds.includes(template.id)}
+				canFavorite={!!data.user}
+			/>
 		{/each}
 	</div>
 {:else}
 	<p class="empty">
-		Nothing found.
-		{#if data.user}<a href="/templates/new">Make a template for it?</a>{/if}
+		{#if data.filters.favorites && !data.filters.q && !data.filters.category}
+			No favorites yet. Press the ☆ on a template to find it here.
+		{:else}
+			Nothing found.
+			{#if data.user}<a href="/templates/new">Make a template for it?</a>{/if}
+		{/if}
 	</p>
 {/if}
 
@@ -74,9 +96,46 @@
 <style>
 	.filters {
 		display: grid;
-		grid-template-columns: 1fr auto auto auto;
+		grid-template-columns: 1fr auto auto auto auto;
 		gap: 8px;
 		margin-bottom: 8px;
+	}
+	/* Without an account there's no favorites toggle */
+	.filters:not(:has(.favorites-toggle)) {
+		grid-template-columns: 1fr auto auto auto;
+	}
+	.favorites-toggle {
+		position: relative;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		gap: 6px;
+		padding: 0 14px;
+		border: 1px solid var(--line);
+		border-radius: 999px;
+		background: var(--surface);
+		font-size: 0.9375rem;
+		font-weight: 600;
+		white-space: nowrap;
+		cursor: pointer;
+	}
+	.favorites-toggle input {
+		position: absolute;
+		opacity: 0;
+		pointer-events: none;
+	}
+	.favorites-toggle span {
+		color: var(--ink-soft);
+	}
+	.favorites-toggle.on {
+		border-color: #f5c84c;
+	}
+	.favorites-toggle.on span {
+		color: #f5c84c;
+	}
+	.favorites-toggle:has(input:focus-visible) {
+		outline: 2px solid var(--focus);
+		outline-offset: 2px;
 	}
 	.pager {
 		display: flex;
@@ -89,7 +148,7 @@
 		.filters {
 			grid-template-columns: 1fr 1fr;
 		}
-		.filters input {
+		.filters input[type="search"] {
 			grid-column: 1 / -1;
 		}
 	}

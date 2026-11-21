@@ -47,7 +47,12 @@
 	{#if data.popular.length}
 		<div class="card-grid">
 			{#each data.popular as template (template.id)}
-				<TemplateCard {template} previewItems={template.template_items} />
+				<TemplateCard
+					{template}
+					previewItems={template.template_items}
+					favorite={data.favoriteIds.includes(template.id)}
+					canFavorite={!!data.user}
+				/>
 			{/each}
 		</div>
 	{:else}

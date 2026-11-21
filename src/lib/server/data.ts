@@ -15,6 +15,24 @@ export type TemplateCardRow = Template & {
 	}[];
 };
 
+/**
+ * Which of these templates the user has favorited (for the star on template cards).
+ * Empty when logged out.
+ */
+export async function favoriteIds(
+	supabase: SupabaseClient,
+	userId: string | null | undefined,
+	templateIds: string[]
+): Promise<string[]> {
+	if (!userId || templateIds.length === 0) return [];
+	const { data } = await supabase
+		.from("template_favorites")
+		.select("template_id")
+		.eq("user_id", userId)
+		.in("template_id", templateIds);
+	return (data ?? []).map((f) => f.template_id as string);
+}
+
 /** Loads a template and its items, or throws a 404. */
 export async function loadTemplate(
 	supabase: SupabaseClient,

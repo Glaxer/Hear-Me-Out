@@ -36,6 +36,29 @@
 
 <section class="section">
 	<div class="section-head">
+		<h2>Favorite templates</h2>
+		{#if data.favorites.length}<a href="/templates?favorites=1">See all</a>{/if}
+	</div>
+	{#if data.favorites.length}
+		<div class="card-grid">
+			{#each data.favorites as template (template.id)}
+				<TemplateCard
+					{template}
+					previewItems={template.template_items}
+					favorite
+					canFavorite
+				/>
+			{/each}
+		</div>
+	{:else}
+		<p class="empty">
+			No favorites yet. Press the ☆ on a template to keep it here.
+		</p>
+	{/if}
+</section>
+
+<section class="section">
+	<div class="section-head">
 		<h2>My tier lists</h2>
 		<a href="/templates">Find something to rank</a>
 	</div>
@@ -75,7 +98,12 @@
 	{#if data.templates.length}
 		<div class="card-grid">
 			{#each data.templates as template (template.id)}
-				<TemplateCard {template} previewItems={template.template_items} />
+				<TemplateCard
+					{template}
+					previewItems={template.template_items}
+					favorite={data.favoriteIds.includes(template.id)}
+					canFavorite={!!data.user}
+				/>
 			{/each}
 		</div>
 	{:else}

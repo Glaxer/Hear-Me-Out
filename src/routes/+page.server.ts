@@ -1,4 +1,8 @@
-import { TEMPLATE_CARD_SELECT, type TemplateCardRow } from "$lib/server/data";
+import {
+	favoriteIds,
+	TEMPLATE_CARD_SELECT,
+	type TemplateCardRow
+} from "$lib/server/data";
 import type { TierList } from "$lib/types";
 import type { PageServerLoad } from "./$types";
 
@@ -24,8 +28,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.limit(8)
 	]);
 
+	const popularTemplates = (popular.data ?? []) as unknown as TemplateCardRow[];
+
 	return {
-		popular: (popular.data ?? []) as unknown as TemplateCardRow[],
+		popular: popularTemplates,
+		favoriteIds: await favoriteIds(
+			locals.supabase,
+			locals.user?.id,
+			popularTemplates.map((t) => t.id)
+		),
 		recentLists: (recent.data ?? []) as unknown as Pick<
 			TierList,
 			"id" | "title" | "updated_at" | "profiles" | "templates"
