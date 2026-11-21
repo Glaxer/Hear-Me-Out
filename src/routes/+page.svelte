@@ -51,6 +51,7 @@
 					{template}
 					previewItems={template.template_items}
 					favorite={data.favoriteIds.includes(template.id)}
+					canFavorite={!!data.user}
 				/>
 			{/each}
 		</div>

@@ -46,12 +46,13 @@
 					{template}
 					previewItems={template.template_items}
 					favorite
+					canFavorite
 				/>
 			{/each}
 		</div>
 	{:else}
 		<p class="empty">
-			No favorites yet. Press ☆ Favorite on a template to keep it here.
+			No favorites yet. Press the ☆ on a template to keep it here.
 		</p>
 	{/if}
 </section>
@@ -101,6 +102,7 @@
 					{template}
 					previewItems={template.template_items}
 					favorite={data.favoriteIds.includes(template.id)}
+					canFavorite={!!data.user}
 				/>
 			{/each}
 		</div>

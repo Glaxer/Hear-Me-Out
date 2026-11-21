@@ -64,13 +64,14 @@
 				{template}
 				previewItems={template.template_items}
 				favorite={data.favoriteIds.includes(template.id)}
+				canFavorite={!!data.user}
 			/>
 		{/each}
 	</div>
 {:else}
 	<p class="empty">
 		{#if data.filters.favorites && !data.filters.q && !data.filters.category}
-			No favorites yet. Press ☆ Favorite on a template to find it here.
+			No favorites yet. Press the ☆ on a template to find it here.
 		{:else}
 			Nothing found.
 			{#if data.user}<a href="/templates/new">Make a template for it?</a>{/if}
