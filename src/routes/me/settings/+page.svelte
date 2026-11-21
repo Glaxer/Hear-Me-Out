@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { toastFormError } from "$lib/formErrors.svelte";
+	import { toast } from "$lib/toast.svelte";
 	import { enhance } from "$app/forms";
 	import { MIN_PASSWORD_LENGTH } from "$lib/validation";
 	import type { ActionData, PageData } from "./$types";
@@ -11,20 +12,40 @@
 	let busy = $state<string | null>(null);
 	let confirmText = $state("");
 
-	/** Shows a spinner label on the form being submitted and keeps typed values after an error. */
+	/**
+	 * Shows a spinner label on the form being submitted and keeps typed values after an error.
+	 * Success messages from the server are shown as toasts (errors by toastFormError).
+	 */
 	function submitting(section: string) {
 		return () => {
 			busy = section;
 			return async ({
+				result,
 				update
 			}: {
+				result: { type: string; data?: Record<string, unknown> };
 				update: (opts?: { reset?: boolean }) => Promise<void>;
 			}) => {
 				await update({ reset: section === "password" });
 				busy = null;
+				if (result.type === "success" && result.data?.success) {
+					const { success, title } = result.data;
+					toast(
+						String(success),
+						"success",
+						5000,
+						typeof title === "string" ? title : undefined
+					);
+				}
 			};
 		};
 	}
+
+	const NAMES: Record<string, string> = {
+		google: "Google",
+		discord: "Discord"
+	};
+	const canDisconnect = $derived(data.loginCount > 1);
 
 	const message = (section: string) =>
 		form?.section === section ? form : null;
@@ -48,9 +69,6 @@
 		class="form"
 		use:enhance={submitting("username")}
 	>
-		{#if message("username")?.success}<p class="form-success" role="status">
-				{message("username")?.success}
-			</p>{/if}
 		<div class="field">
 			<label for="username">Username</label>
 			<input
@@ -72,6 +90,75 @@
 	</form>
 </section>
 
+{#if data.logins.length}
+	<section class="card setting">
+		<h2>Login methods</h2>
+		<p class="muted">
+			Connect more ways to log in. They all open this same account, with your
+			username, rankings and templates.
+		</p>
+		<ul class="logins">
+			<li>
+				<span class="login-name">Email and password</span>
+				<span class="muted login-detail">
+					{data.hasPassword
+						? (data.email ?? "Connected")
+						: "Set a password below to use it"}
+				</span>
+			</li>
+			{#each data.logins as login (login.provider)}
+				<li>
+					<span class="login-name">{NAMES[login.provider]}</span>
+					{#if login.connected}
+						<span class="muted login-detail">{login.email ?? "Connected"}</span>
+						<form
+							method="POST"
+							action="?/unlink"
+							use:enhance={() => {
+								busy = `unlink-${login.provider}`;
+								const name = NAMES[login.provider];
+								return async ({ result, update }) => {
+									await update();
+									busy = null;
+									// Errors are toasted by toastFormError
+									if (result.type === "success")
+										toast(
+											`You can no longer log in with ${name}.`,
+											"success",
+											5000,
+											`${name} disconnected`
+										);
+								};
+							}}
+						>
+							<input type="hidden" name="provider" value={login.provider} />
+							<button
+								class="btn btn-secondary btn-small"
+								type="submit"
+								disabled={!canDisconnect || busy === `unlink-${login.provider}`}
+								title={canDisconnect
+									? undefined
+									: "Your only login method can’t be removed"}
+							>
+								{busy === `unlink-${login.provider}`
+									? "Disconnecting…"
+									: "Disconnect"}
+							</button>
+						</form>
+					{:else}
+						<span class="muted login-detail">Not connected</span>
+						<!-- A plain form: the server sends the user on to Google/Discord -->
+						<form method="POST" action="/auth/link">
+							<input type="hidden" name="provider" value={login.provider} />
+							<button class="btn btn-small" type="submit">Connect</button>
+						</form>
+					{/if}
+				</li>
+			{/each}
+		</ul>
+	</section>
+{/if}
+
 <section class="card setting">
 	<h2>Password</h2>
 	{#if data.hasPassword}
@@ -91,9 +178,6 @@
 		class="form"
 		use:enhance={submitting("password")}
 	>
-		{#if message("password")?.success}<p class="form-success" role="status">
-				{message("password")?.success}
-			</p>{/if}
 		<!-- Helps password managers save the new password for the right account -->
 		<input
 			type="text"
@@ -207,6 +291,50 @@
 	}
 	.setting .btn {
 		justify-self: start;
+	}
+	.logins {
+		list-style: none;
+		margin: 12px 0 0;
+		padding: 0;
+	}
+	.logins li {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		min-height: 52px;
+		padding: 8px 0;
+		border-top: 1px solid var(--line);
+	}
+	.logins form {
+		margin: 0 0 0 auto;
+	}
+	.setting .logins .btn {
+		margin: 0;
+	}
+	.login-name {
+		flex: none;
+		width: 190px;
+		font-weight: 600;
+	}
+	.login-detail {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		font-size: 0.9375rem;
+	}
+	@media (max-width: 480px) {
+		.login-name {
+			width: auto;
+		}
+		.logins li {
+			flex-wrap: wrap;
+			row-gap: 2px;
+		}
+		.login-detail {
+			order: 3;
+			flex-basis: 100%;
+		}
 	}
 	.danger {
 		border-color: color-mix(in srgb, var(--danger) 45%, var(--line));

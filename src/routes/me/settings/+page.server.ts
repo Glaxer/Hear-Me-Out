@@ -1,6 +1,11 @@
 import { fail, redirect } from "@sveltejs/kit";
 import { IMAGE_BUCKET } from "$lib/images";
-import { hasPassword } from "$lib/server/auth";
+import {
+	enabledOAuthProviders,
+	hasPassword,
+	isOAuthProvider,
+	OAUTH_PROVIDERS
+} from "$lib/server/auth";
 import { isPwnedPassword, PWNED_MESSAGE } from "$lib/server/pwned";
 import {
 	MIN_PASSWORD_LENGTH,
@@ -10,11 +15,32 @@ import {
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Actions, PageServerLoad } from "./$types";
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, fetch }) => {
 	if (!locals.user) redirect(303, "/login?redirectTo=/me/settings");
+
+	const [{ data: identityData }, enabled] = await Promise.all([
+		locals.supabase.auth.getUserIdentities(),
+		enabledOAuthProviders(fetch)
+	]);
+	const identities = identityData?.identities ?? [];
+
+	// Google/Discord: shown if switched on in Supabase, or if already connected
+	const logins = OAUTH_PROVIDERS.map((provider) => {
+		const identity = identities.find((i) => i.provider === provider);
+		const email = identity?.identity_data?.email;
+		return {
+			provider,
+			connected: !!identity,
+			email: typeof email === "string" ? email : null
+		};
+	}).filter((l) => l.connected || enabled.includes(l.provider));
+
 	return {
 		email: locals.user.email ?? null,
-		hasPassword: hasPassword(locals.user)
+		hasPassword: hasPassword(locals.user),
+		logins,
+		// Disconnecting is only allowed while another way to log in is left
+		loginCount: identities.length
 	};
 };
 
@@ -68,7 +94,11 @@ export const actions: Actions = {
 					: "Could not save your username. Please try again.";
 			return fail(400, { section: "username", username, error: message });
 		}
-		return { section: "username", success: "Username updated." };
+		return {
+			section: "username",
+			title: "Username updated",
+			success: `You’re now ${username}.`
+		};
 	},
 
 	password: async ({ request, locals }) => {
@@ -106,10 +136,51 @@ export const actions: Actions = {
 		}
 		return {
 			section: "password",
-			success: hasPassword(locals.user)
-				? "Password changed."
-				: "Password set. You can now also log in with your email and password."
+			...(hasPassword(locals.user)
+				? {
+						title: "Password changed",
+						success: "Use your new password next time you log in."
+					}
+				: {
+						title: "Password set",
+						success: "You can now also log in with your email and password."
+					})
 		};
+	},
+
+	unlink: async ({ request, locals }) => {
+		if (!locals.user) redirect(303, "/login?redirectTo=/me/settings");
+
+		const provider = (await request.formData()).get("provider");
+		if (!isOAuthProvider(provider))
+			return fail(400, { section: "logins", error: "Unknown login option." });
+
+		const { data } = await locals.supabase.auth.getUserIdentities();
+		const identities = data?.identities ?? [];
+		const identity = identities.find((i) => i.provider === provider);
+		if (!identity)
+			return fail(400, {
+				section: "logins",
+				error: "That login method isn’t connected."
+			});
+		if (identities.length < 2)
+			return fail(400, {
+				section: "logins",
+				error:
+					"That’s the only login method on your account, so it can’t be removed. Connect another one first."
+			});
+
+		const { error } = await locals.supabase.auth.unlinkIdentity(identity);
+		if (error)
+			return fail(500, {
+				section: "logins",
+				error: "Couldn’t disconnect it. Please try again."
+			});
+
+		// Get a fresh login token, so it no longer lists the removed login method
+		await locals.supabase.auth.refreshSession();
+		// Confirmed with a toast on the page
+		return { section: "logins" };
 	},
 
 	delete: async ({ request, locals }) => {
