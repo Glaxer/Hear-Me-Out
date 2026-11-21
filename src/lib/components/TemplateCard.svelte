@@ -119,12 +119,10 @@
 		display: grid;
 		gap: 10px;
 		text-decoration: none;
-		transition:
-			transform 0.12s ease,
-			border-color 0.12s ease;
+		transition: border-color 0.12s ease;
 	}
-	.template-card:hover {
-		transform: translateY(-2px);
+	/* Only the border changes on hover (also while on the star), so nothing jumps around */
+	.card-wrap:hover .template-card {
 		border-color: var(--ink-soft);
 	}
 	.template-card h3 {
@@ -205,13 +203,10 @@
 	}
 	button.favorite {
 		cursor: pointer;
-		transition:
-			transform 0.12s ease,
-			background 0.12s ease;
+		transition: background 0.12s ease;
 	}
 	button.favorite:hover {
-		background: rgb(0 0 0 / 0.8);
-		transform: scale(1.08);
+		background: rgb(0 0 0 / 0.85);
 	}
 	button.favorite:focus-visible {
 		outline: 2px solid var(--focus);
@@ -219,9 +214,5 @@
 	}
 	.favorite.on {
 		color: #f5c84c;
-	}
-	/* The card lifts on hover: lift the star with it */
-	.card-wrap:has(.template-card:hover) .favorite {
-		translate: 0 -2px;
 	}
 </style>
