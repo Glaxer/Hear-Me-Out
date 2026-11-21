@@ -94,7 +94,11 @@ export const actions: Actions = {
 					: "Could not save your username. Please try again.";
 			return fail(400, { section: "username", username, error: message });
 		}
-		return { section: "username", success: "Username updated." };
+		return {
+			section: "username",
+			title: "Username updated",
+			success: `You’re now ${username}.`
+		};
 	},
 
 	password: async ({ request, locals }) => {
@@ -132,9 +136,15 @@ export const actions: Actions = {
 		}
 		return {
 			section: "password",
-			success: hasPassword(locals.user)
-				? "Password changed."
-				: "Password set. You can now also log in with your email and password."
+			...(hasPassword(locals.user)
+				? {
+						title: "Password changed",
+						success: "Use your new password next time you log in."
+					}
+				: {
+						title: "Password set",
+						success: "You can now also log in with your email and password."
+					})
 		};
 	},
 

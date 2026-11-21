@@ -12,17 +12,31 @@
 	let busy = $state<string | null>(null);
 	let confirmText = $state("");
 
-	/** Shows a spinner label on the form being submitted and keeps typed values after an error. */
+	/**
+	 * Shows a spinner label on the form being submitted and keeps typed values after an error.
+	 * Success messages from the server are shown as toasts (errors by toastFormError).
+	 */
 	function submitting(section: string) {
 		return () => {
 			busy = section;
 			return async ({
+				result,
 				update
 			}: {
+				result: { type: string; data?: Record<string, unknown> };
 				update: (opts?: { reset?: boolean }) => Promise<void>;
 			}) => {
 				await update({ reset: section === "password" });
 				busy = null;
+				if (result.type === "success" && result.data?.success) {
+					const { success, title } = result.data;
+					toast(
+						String(success),
+						"success",
+						5000,
+						typeof title === "string" ? title : undefined
+					);
+				}
 			};
 		};
 	}
@@ -55,9 +69,6 @@
 		class="form"
 		use:enhance={submitting("username")}
 	>
-		{#if message("username")?.success}<p class="form-success" role="status">
-				{message("username")?.success}
-			</p>{/if}
 		<div class="field">
 			<label for="username">Username</label>
 			<input
@@ -167,9 +178,6 @@
 		class="form"
 		use:enhance={submitting("password")}
 	>
-		{#if message("password")?.success}<p class="form-success" role="status">
-				{message("password")?.success}
-			</p>{/if}
 		<!-- Helps password managers save the new password for the right account -->
 		<input
 			type="text"
