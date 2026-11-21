@@ -16,6 +16,7 @@ import {
  *     on /welcome first.
  *   - Supabase's default email link: only logs in if it's opened in the same browser that signed
  *     up. On another device the email is still confirmed, so we send them to log in.
+ * - flow=link: back from connecting Google/Discord to an account on the settings page.
  */
 export const GET: RequestHandler = async ({ url, locals, cookies }) => {
 	const code = url.searchParams.get("code");
@@ -23,6 +24,24 @@ export const GET: RequestHandler = async ({ url, locals, cookies }) => {
 	const type = (url.searchParams.get("type") ?? "email") as EmailOtpType;
 	const isOAuth = url.searchParams.get("flow") === "oauth";
 	const next = safeRedirect(url.searchParams.get("next"), "");
+
+	// Connecting another login method (settings page)
+	if (url.searchParams.get("flow") === "link") {
+		if (url.searchParams.has("error")) {
+			// The Google/Discord account already belongs to another Hear Me Out account
+			const taken =
+				url.searchParams.get("error_code") === "identity_already_exists";
+			redirect(
+				303,
+				`/me/settings?toast=${taken ? "link-taken" : "link-failed"}`
+			);
+		}
+		const code = url.searchParams.get("code");
+		const { error } = code
+			? await locals.supabase.auth.exchangeCodeForSession(code)
+			: { error: true };
+		redirect(303, `/me/settings?toast=${error ? "link-failed" : "linked"}`);
+	}
 
 	// Google/Discord send the user back with ?error=… if they cancel or something goes wrong
 	if (url.searchParams.has("error")) {

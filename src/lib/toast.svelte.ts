@@ -72,6 +72,26 @@ export const REDIRECT_TOASTS: Record<
 		kind: "success"
 	},
 	"template-saved": { message: "Template saved.", kind: "success" },
+	linked: {
+		title: "Connected",
+		message: "You can now log in with it too.",
+		kind: "success"
+	},
+	"link-taken": {
+		title: "Already in use",
+		message:
+			"That account is already used to log in to another Hear Me Out account, so it can’t be connected here too.",
+		kind: "warning",
+		durationMs: 10000
+	},
+	"link-failed": {
+		message: "Couldn’t connect it. Please try again.",
+		kind: "error"
+	},
+	"link-disabled": {
+		message: "Connecting more login methods isn’t switched on yet.",
+		kind: "error"
+	},
 	"template-deleted": {
 		title: "Template deleted",
 		message: "It’s gone, along with every ranking made from it.",
