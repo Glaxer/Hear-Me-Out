@@ -82,6 +82,8 @@ export const actions: Actions = {
 				description: "",
 				category: "Other",
 				visibility: "unlisted",
+				// Kept out of "My templates": the ranking is what the user made
+				is_quick: true,
 				format,
 				bracket_order: bracketOrder,
 				default_tiers: tiers

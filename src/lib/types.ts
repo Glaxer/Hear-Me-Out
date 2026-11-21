@@ -35,6 +35,8 @@ export interface Template {
 	bracket_order: "shuffled" | "ordered";
 	/** Brackets only: the fixed first round (see $lib/bracket). */
 	bracket_seed: (string | null)[] | null;
+	/** Made by the quick tier list: left out of "My templates". */
+	is_quick?: boolean;
 	list_count: number;
 	created_at: string;
 	profiles?: { username: string } | null;
