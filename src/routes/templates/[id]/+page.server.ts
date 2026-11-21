@@ -47,9 +47,21 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		}
 	}
 
+	const isFavorite = locals.user
+		? (
+				await locals.supabase
+					.from("template_favorites")
+					.select("template_id")
+					.eq("user_id", locals.user.id)
+					.eq("template_id", params.id)
+					.maybeSingle()
+			).data !== null
+		: false;
+
 	return {
 		template,
 		items,
+		isFavorite,
 		lists: shownLists,
 		verdict,
 		verdictState,
@@ -62,6 +74,35 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 };
 
 export const actions: Actions = {
+	/** Adds the template to your favorites, or takes it out again. */
+	favorite: async ({ locals, params }) => {
+		if (!locals.user)
+			redirect(303, `/login?redirectTo=/templates/${params.id}`);
+		if (!isUuid(params.id)) error(404, "Template not found");
+
+		const own = locals.supabase
+			.from("template_favorites")
+			.select("template_id")
+			.eq("user_id", locals.user.id)
+			.eq("template_id", params.id);
+		const { data: existing } = await own.maybeSingle();
+
+		const { error: err } = existing
+			? await locals.supabase
+					.from("template_favorites")
+					.delete()
+					.eq("user_id", locals.user.id)
+					.eq("template_id", params.id)
+			: await locals.supabase
+					.from("template_favorites")
+					.insert({ user_id: locals.user.id, template_id: params.id });
+		if (err)
+			return fail(500, {
+				error: "Couldn’t update your favorites. Please try again."
+			});
+		return { favorite: !existing };
+	},
+
 	delete: async ({ locals, params }) => {
 		if (!locals.user) redirect(303, "/login");
 		const { items } = await loadTemplate(locals.supabase, params.id);

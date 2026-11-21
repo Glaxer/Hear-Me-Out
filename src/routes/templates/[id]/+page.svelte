@@ -10,10 +10,16 @@
 	import BracketView from "$lib/components/BracketView.svelte";
 	import { byeCount, emptyPicks } from "$lib/bracket";
 	import { visibilityChip } from "$lib/visibility";
+	import { toast } from "$lib/toast.svelte";
+	import { showError } from "$lib/formErrors.svelte";
 
 	import type { PageData } from "./$types";
 
 	let { data }: { data: PageData } = $props();
+
+	// Writable: flips straight away when pressed, and resets when going to another template
+	let isFavorite = $derived(data.isFavorite);
+	let savingFavorite = $state(false);
 
 	const isOwner = $derived(data.user?.id === data.template.owner_id);
 	const mine = $derived(data.lists.filter((l) => l.owner_id === data.user?.id));
@@ -79,6 +85,51 @@
 			</a>
 		</div>
 		<div class="more-actions">
+			{#if data.user}
+				<form
+					method="POST"
+					action="?/favorite"
+					use:enhance={() => {
+						const was = isFavorite;
+						isFavorite = !was;
+						savingFavorite = true;
+						return async ({ result }) => {
+							savingFavorite = false;
+							if (result.type === "success") {
+								toast(
+									was
+										? "It’s no longer in your favorites."
+										: "Find it under Favorites on the templates page and on My page.",
+									"success",
+									5000,
+									was ? "Removed from favorites" : "Added to favorites"
+								);
+							} else {
+								isFavorite = was;
+								showError("Couldn’t update your favorites. Please try again.");
+							}
+						};
+					}}
+				>
+					<button
+						class="btn btn-secondary btn-small favorite-button"
+						class:on={isFavorite}
+						type="submit"
+						aria-pressed={isFavorite}
+						disabled={savingFavorite}
+					>
+						<span aria-hidden="true">{isFavorite ? "★" : "☆"}</span>
+						{isFavorite ? "Favorited" : "Favorite"}
+					</button>
+				</form>
+			{:else}
+				<a
+					class="btn btn-secondary btn-small favorite-button"
+					href="/login?redirectTo=/templates/{data.template.id}"
+					title="Log in to keep your favorite templates"
+					><span aria-hidden="true">☆</span> Favorite</a
+				>
+			{/if}
 			<a
 				class="btn btn-secondary btn-small"
 				href="/templates/new?from={data.template.id}"
@@ -264,6 +315,19 @@
 		margin: 0;
 	}
 	.main-actions,
+	.more-actions form {
+		margin: 0;
+	}
+	.favorite-button span {
+		font-size: 1rem;
+		line-height: 1;
+	}
+	.favorite-button.on {
+		border-color: #f5c84c;
+	}
+	.favorite-button.on span {
+		color: #f5c84c;
+	}
 	.more-actions {
 		display: flex;
 		gap: 8px;

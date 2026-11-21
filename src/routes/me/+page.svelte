@@ -75,11 +75,37 @@
 	{#if data.templates.length}
 		<div class="card-grid">
 			{#each data.templates as template (template.id)}
-				<TemplateCard {template} previewItems={template.template_items} />
+				<TemplateCard
+					{template}
+					previewItems={template.template_items}
+					favorite={data.favoriteIds.includes(template.id)}
+				/>
 			{/each}
 		</div>
 	{:else}
 		<p class="empty">No templates yet.</p>
+	{/if}
+</section>
+
+<section class="section">
+	<div class="section-head">
+		<h2>Favorite templates</h2>
+		{#if data.favorites.length}<a href="/templates?favorites=1">See all</a>{/if}
+	</div>
+	{#if data.favorites.length}
+		<div class="card-grid">
+			{#each data.favorites as template (template.id)}
+				<TemplateCard
+					{template}
+					previewItems={template.template_items}
+					favorite
+				/>
+			{/each}
+		</div>
+	{:else}
+		<p class="empty">
+			No favorites yet. Press ☆ Favorite on a template to keep it here.
+		</p>
 	{/if}
 </section>
 

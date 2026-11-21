@@ -1,4 +1,8 @@
-import { TEMPLATE_CARD_SELECT, type TemplateCardRow } from "$lib/server/data";
+import {
+	favoriteIds,
+	TEMPLATE_CARD_SELECT,
+	type TemplateCardRow
+} from "$lib/server/data";
 import { CATEGORIES } from "$lib/tiers";
 import type { PageServerLoad } from "./$types";
 
@@ -12,13 +16,28 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		: "";
 	const sort = url.searchParams.get("sort") === "new" ? "new" : "popular";
 	const page = Math.max(1, Number(url.searchParams.get("page")) || 1);
+	// Only your favorites (logged in only)
+	const favorites = !!locals.user && url.searchParams.get("favorites") === "1";
 
 	let query = locals.supabase
 		.from("templates")
 		.select(TEMPLATE_CARD_SELECT, { count: "exact" })
-		.eq("visibility", "public")
 		.order("position", { referencedTable: "template_items" })
 		.limit(4, { referencedTable: "template_items" });
+
+	if (favorites) {
+		const { data: favs } = await locals.supabase
+			.from("template_favorites")
+			.select("template_id")
+			.eq("user_id", locals.user!.id);
+		// Includes link-only templates: you found them, so they're yours to find again
+		query = query.in(
+			"id",
+			(favs ?? []).map((f) => f.template_id as string)
+		);
+	} else {
+		query = query.eq("visibility", "public");
+	}
 
 	if (q) {
 		// Escape characters that have meaning in PostgREST filters and LIKE patterns
@@ -36,12 +55,18 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	const from = (page - 1) * PAGE_SIZE;
 	const { data, count } = await query.range(from, from + PAGE_SIZE - 1);
+	const templates = (data ?? []) as unknown as TemplateCardRow[];
 
 	return {
-		templates: (data ?? []) as unknown as TemplateCardRow[],
+		templates,
+		favoriteIds: await favoriteIds(
+			locals.supabase,
+			locals.user?.id,
+			templates.map((t) => t.id)
+		),
 		total: count ?? 0,
 		page,
 		pageCount: Math.max(1, Math.ceil((count ?? 0) / PAGE_SIZE)),
-		filters: { q, category, sort }
+		filters: { q, category, sort, favorites }
 	};
 };

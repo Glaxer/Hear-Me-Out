@@ -26,8 +26,29 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.order("updated_at", { ascending: false })
 	]);
 
+	// Favorite templates, most recently favorited first
+	const { data: favs } = await locals.supabase
+		.from("template_favorites")
+		.select("template_id")
+		.eq("user_id", user.id)
+		.order("created_at", { ascending: false });
+	const favIds = (favs ?? []).map((f) => f.template_id as string);
+	const { data: favData } = favIds.length
+		? await locals.supabase
+				.from("templates")
+				.select(TEMPLATE_CARD_SELECT)
+				.in("id", favIds)
+				.order("position", { referencedTable: "template_items" })
+				.limit(4, { referencedTable: "template_items" })
+		: { data: [] };
+	const favoriteTemplates = ((favData ?? []) as unknown as TemplateCardRow[])
+		.slice()
+		.sort((a, b) => favIds.indexOf(a.id) - favIds.indexOf(b.id));
+
 	return {
 		templates: (templates.data ?? []) as unknown as TemplateCardRow[],
+		favorites: favoriteTemplates,
+		favoriteIds: favIds,
 		lists: (lists.data ?? []) as unknown as TierList[],
 		email: user.email ?? null
 	};

@@ -4,14 +4,25 @@
 
 	let {
 		template,
-		previewItems = []
+		previewItems = [],
+		favorite = false
 	}: {
 		template: Template;
 		previewItems?: { label: string; image_path: string | null }[];
+		/** In the viewer's favorites: shows a small star. */
+		favorite?: boolean;
 	} = $props();
 </script>
 
 <a class="card template-card" href="/templates/{template.id}">
+	{#if favorite}
+		<span
+			class="favorite"
+			role="img"
+			aria-label="In your favorites"
+			title="In your favorites">★</span
+		>
+	{/if}
 	<div class="preview" aria-hidden="true">
 		{#each previewItems.slice(0, 4) as item, i (i)}
 			{@const src = imageUrl(item.image_path)}
@@ -44,6 +55,7 @@
 
 <style>
 	.template-card {
+		position: relative;
 		display: grid;
 		gap: 10px;
 		text-decoration: none;
@@ -110,5 +122,21 @@
 	.by {
 		margin: 0;
 		font-size: 0.875rem;
+	}
+	/* Small star on the corner of the pictures */
+	.favorite {
+		position: absolute;
+		top: 8px;
+		right: 8px;
+		z-index: 1;
+		display: grid;
+		place-items: center;
+		width: 24px;
+		height: 24px;
+		border-radius: 50%;
+		background: rgb(0 0 0 / 0.55);
+		color: #f5c84c;
+		font-size: 0.875rem;
+		line-height: 1;
 	}
 </style>
