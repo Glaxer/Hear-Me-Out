@@ -169,7 +169,8 @@ export const actions: Actions = {
 
 		// Get a fresh login token, so it no longer lists the removed login method
 		await locals.supabase.auth.refreshSession();
-		return { section: "logins", success: "Disconnected." };
+		// Confirmed with a toast on the page
+		return { section: "logins" };
 	},
 
 	delete: async ({ request, locals }) => {

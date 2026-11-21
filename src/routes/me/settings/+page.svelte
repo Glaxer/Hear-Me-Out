@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { toastFormError } from "$lib/formErrors.svelte";
+	import { toast } from "$lib/toast.svelte";
 	import { enhance } from "$app/forms";
 	import { MIN_PASSWORD_LENGTH } from "$lib/validation";
 	import type { ActionData, PageData } from "./$types";
@@ -104,9 +105,18 @@
 							action="?/unlink"
 							use:enhance={() => {
 								busy = `unlink-${login.provider}`;
-								return async ({ update }) => {
+								const name = NAMES[login.provider];
+								return async ({ result, update }) => {
 									await update();
 									busy = null;
+									// Errors are toasted by toastFormError
+									if (result.type === "success")
+										toast(
+											`You can no longer log in with ${name}.`,
+											"success",
+											5000,
+											`${name} disconnected`
+										);
 								};
 							}}
 						>
@@ -135,9 +145,6 @@
 				</li>
 			{/each}
 		</ul>
-		{#if message("logins")?.success}<p class="form-success" role="status">
-				{message("logins")?.success}
-			</p>{/if}
 	</section>
 {/if}
 
