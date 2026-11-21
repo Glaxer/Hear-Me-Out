@@ -5,6 +5,11 @@ const THUMB_SIDE = 256;
 const FULL_SIDE = 1920;
 /** Storage bucket limit is 2 MB; stay safely below it. */
 const FULL_MAX_BYTES = 1.8 * 1024 * 1024;
+/**
+ * What the large image should ideally weigh. Larger ones are retried smaller or lighter.
+ * Mostly matters for Safari, whose JPEGs are much bigger than WebP at the same quality.
+ */
+const FULL_TARGET_BYTES = 400 * 1024;
 /** Thumbnails are shown many at a time, so keep them light. */
 const THUMB_MAX_BYTES = 300 * 1024;
 /** Raw files can be big (phone photos); they're shrunk in the browser before upload. */
@@ -46,13 +51,20 @@ export async function processImage(file: File): Promise<ProcessedImage> {
 
 	try {
 		const thumb = await resize(source, THUMB_SIDE, 0.85, THUMB_MAX_BYTES);
-		// Try progressively smaller/lighter versions until the large image fits the size limit
-		let full = await resize(source, FULL_SIDE, 0.82, FULL_MAX_BYTES);
-		if (full.size > FULL_MAX_BYTES)
-			full = await resize(source, FULL_SIDE, 0.65, FULL_MAX_BYTES);
-		if (full.size > FULL_MAX_BYTES)
-			full = await resize(source, 1280, 0.7, FULL_MAX_BYTES);
-		if (full.size > FULL_MAX_BYTES)
+		// Try progressively smaller/lighter versions until the large image is light enough.
+		// The last step is used even if it's above the target, as long as it fits the size limit.
+		const steps: [side: number, quality: number][] = [
+			[FULL_SIDE, 0.82],
+			[FULL_SIDE, 0.7],
+			[1600, 0.7],
+			[1280, 0.7]
+		];
+		let full: Blob | null = null;
+		for (const [side, quality] of steps) {
+			full = await resize(source, side, quality, FULL_MAX_BYTES);
+			if (full.size <= FULL_TARGET_BYTES) break;
+		}
+		if (!full || full.size > FULL_MAX_BYTES)
 			throw new ImageError("the image is too detailed to shrink enough");
 		return { thumb, full };
 	} finally {
@@ -63,8 +75,10 @@ export async function processImage(file: File): Promise<ProcessedImage> {
 /**
  * Draws the image at most `maxSide` px on its longest side and encodes it, preferably as WebP.
  * Safari (and so every browser on iPhone and iPad) can't make WebP and quietly returns a PNG
- * instead, which is far too big for photos. Then: PNG if it fits `maxBytes` (keeps transparency),
- * otherwise JPEG.
+ * instead, which is far too big for photos. Then:
+ * - no see-through parts (photos): JPEG, about 10 times smaller than PNG,
+ * - see-through parts (logos, cut-outs): PNG if it fits `maxBytes` (keeps transparency),
+ *   otherwise JPEG on white.
  */
 async function resize(
 	source: ImageBitmap | HTMLImageElement,
@@ -87,15 +101,28 @@ async function resize(
 	const webp = await toBlob(canvas, "image/webp", quality);
 	if (webp.type === "image/webp") return webp;
 
-	const png =
-		webp.type === "image/png" ? webp : await toBlob(canvas, "image/png");
-	if (png.size <= maxBytes) return png;
+	if (hasTransparency(ctx, width, height)) {
+		const png =
+			webp.type === "image/png" ? webp : await toBlob(canvas, "image/png");
+		if (png.size <= maxBytes) return png;
+	}
 
 	// JPEG has no transparency: put a white background behind see-through parts (instead of black)
 	ctx.globalCompositeOperation = "destination-over";
 	ctx.fillStyle = "#fff";
 	ctx.fillRect(0, 0, width, height);
 	return toBlob(canvas, "image/jpeg", quality);
+}
+
+/** True if any pixel is (partly) see-through. */
+function hasTransparency(
+	ctx: CanvasRenderingContext2D,
+	width: number,
+	height: number
+): boolean {
+	const { data } = ctx.getImageData(0, 0, width, height);
+	for (let i = 3; i < data.length; i += 4) if (data[i] < 255) return true;
+	return false;
 }
 
 function toBlob(
