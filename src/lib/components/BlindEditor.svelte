@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { untrack } from "svelte";
+	import { tick, untrack } from "svelte";
+	import BlindView from "./BlindView.svelte";
 	import { imageUrl } from "$lib/images";
 	import {
 		currentItem,
@@ -8,7 +9,6 @@
 		isDone,
 		place,
 		skip,
-		skippedItems,
 		skipsLeft,
 		startBlind,
 		type BlindState
@@ -59,9 +59,6 @@
 				: `${skips} ${skips === 1 ? "skip" : "skips"} left`;
 		return `${base} · ${left}`;
 	});
-	const skipped = $derived(
-		ranking && done ? skippedItems(ranking.order, ranking.slots) : []
-	);
 
 	/** Brief highlight on the chosen spot before the next item, so the tap feels confirmed. */
 	let justPlaced = $state<number | null>(null);
@@ -71,7 +68,9 @@
 		onchange?.(next);
 	}
 
-	function start() {
+	let gameEl = $state<HTMLElement>();
+
+	async function start() {
 		update(
 			startBlind(
 				dealOrder(
@@ -80,6 +79,9 @@
 				)
 			)
 		);
+		// Bring the whole game into view (on phones the intro sits lower on the page)
+		await tick();
+		gameEl?.scrollIntoView({ block: "start", behavior: "smooth" });
 	}
 
 	function placeAt(slot: number) {
@@ -99,14 +101,6 @@
 		update(null);
 	}
 </script>
-
-{#snippet thumb(id: string)}
-	{@const it = byId.get(id)}
-	{#if it?.image_path}
-		<img class="thumb" src={imageUrl(it.image_path)} alt="" loading="lazy" />
-	{/if}
-	<span class="slot-label">{it?.label ?? "?"}</span>
-{/snippet}
 
 <div class="blind-editor">
 	{#if !ranking}
@@ -135,80 +129,85 @@
 			</ol>
 			<button class="btn" type="button" onclick={start}>Start ranking</button>
 		</div>
+	{:else if done}
+		<div class="finished">
+			<div class="finished-head">
+				<p class="done-title">Your top {ranking.slots.length} is set</p>
+				<button
+					type="button"
+					class="link-button muted start-over"
+					onclick={startOver}>Start over</button
+				>
+			</div>
+			<BlindView slots={ranking.slots} {items} />
+		</div>
 	{:else}
-		<div class="board">
-			<div class="stage card">
-				{#if item && !done}
-					<p class="muted progress-text">{progress}</p>
-					{#key item.id}
-						<div class="current" class:text-only={!item.image_path}>
-							{#if item.image_path}
-								<span class="current-img">
-									<img
-										src={imageUrl(item.full_image_path ?? item.image_path)}
-										alt=""
-										draggable="false"
-									/>
-								</span>
-							{/if}
-							<div class="current-side">
-								<p class="current-label">{item.label}</p>
-								<p class="muted ask">Where does it go?</p>
-								{#if totalSkips > 0}
-									<button
-										type="button"
-										class="btn btn-secondary btn-small"
-										disabled={skips === 0}
-										title={skips === 0
-											? "Every item left needs a spot"
-											: undefined}
-										onclick={() => update(skip(ranking!))}>Skip</button
-									>
-								{/if}
-							</div>
-						</div>
-					{/key}
-				{:else if done}
-					<div class="finished">
-						<p class="done-title">Your top {ranking.slots.length} is set</p>
-						{#if skipped.length}
-							<p class="muted skipped-title">
-								Skipped ({skipped.length})
-							</p>
-							<ul class="skipped">
-								{#each skipped as id (id)}
-									<li>{@render thumb(id)}</li>
-								{/each}
-							</ul>
-						{/if}
-					</div>
-				{/if}
+		<div class="game" style:--slots={ranking.slots.length} bind:this={gameEl}>
+			<div class="game-head card">
+				<p class="muted progress-text">{progress}</p>
+				{#key item?.id}<p class="current-label">{item?.label}</p>{/key}
+				<button
+					type="button"
+					class="link-button muted start-over"
+					onclick={startOver}>Start over</button
+				>
 			</div>
 
-			<ol class="slots" aria-label="Your top {ranking.slots.length}">
-				{#each ranking.slots as id, i (i)}
-					<li class:filled={!!id} class:just={justPlaced === i}>
-						<span class="rank">{i + 1}</span>
-						{#if id}
-							{@render thumb(id)}
-						{:else if !done}
-							<button
-								type="button"
-								class="place"
-								onclick={() => placeAt(i)}
-								aria-label="Put {item?.label ?? 'it'} at number {i + 1}"
-								>Place here</button
-							>
+			<div class="play">
+				{#key item?.id}
+					<div class="picture" class:text-only={!item?.image_path}>
+						{#if item?.image_path}
+							<img
+								src={imageUrl(item.full_image_path ?? item.image_path)}
+								alt={item.label}
+								draggable="false"
+							/>
+						{:else}
+							<span>{item?.label}</span>
 						{/if}
-					</li>
-				{/each}
-			</ol>
+					</div>
+				{/key}
+
+				<ol class="slots" aria-label="Your top {ranking.slots.length}">
+					{#each ranking.slots as id, i (i)}
+						{@const placed = id ? byId.get(id) : null}
+						<li class:just={justPlaced === i}>
+							{#if placed}
+								<span class="slot filled" title="#{i + 1}: {placed.label}">
+									{#if placed.image_path}
+										<img src={imageUrl(placed.image_path)} alt="" />
+									{:else}
+										<span class="slot-text">{placed.label}</span>
+									{/if}
+									<span class="badge">{i + 1}</span>
+								</span>
+								<span class="slot-label">{placed.label}</span>
+							{:else}
+								<button
+									type="button"
+									class="slot empty"
+									onclick={() => placeAt(i)}
+									aria-label="Put {item?.label ?? 'it'} at number {i + 1}"
+									>{i + 1}</button
+								>
+							{/if}
+						</li>
+					{/each}
+				</ol>
+			</div>
+
+			{#if totalSkips > 0}
+				<button
+					type="button"
+					class="btn btn-secondary skip"
+					disabled={skips === 0}
+					title={skips === 0 ? "Every item left needs a spot" : undefined}
+					onclick={() => update(skip(ranking!))}
+					>{skips === 0 ? "No skips left" : "Skip"}</button
+				>
+			{/if}
+			<p class="muted hint">Pick a number to put it there.</p>
 		</div>
-		<button
-			type="button"
-			class="link-button muted start-over"
-			onclick={startOver}>Start over</button
-		>
 	{/if}
 </div>
 
@@ -232,110 +231,99 @@
 		gap: 8px;
 		padding-left: 1.25rem;
 	}
-	.board {
-		display: grid;
-		grid-template-columns: minmax(0, 320px) minmax(0, 1fr);
-		gap: 20px;
-		align-items: start;
-	}
-	.stage {
+
+	/* The game: a strip with the name on top, then the big picture and the spots side by side */
+	.game {
+		/* Height of the picture; the spots share the same height */
+		--play-h: min(560px, 62svh);
+		--gap: 6px;
+		--slot-h: min(
+			64px,
+			calc((var(--play-h) - (var(--slots) - 1) * var(--gap)) / var(--slots))
+		);
 		display: grid;
 		gap: 12px;
-		position: sticky;
-		top: 84px;
+		justify-items: center;
+		/* Below the sticky site header when scrolled into view */
+		scroll-margin-top: 76px;
+	}
+	.game-head {
+		position: relative;
+		width: 100%;
+		max-width: 760px;
+		display: grid;
+		gap: 2px;
+		padding: 8px 12px 10px;
+		text-align: center;
+	}
+	.game-head p {
+		margin: 0;
 	}
 	.progress-text {
-		margin: 0;
-		font-size: 0.875rem;
+		font-size: 0.8125rem;
+		text-align: left;
 	}
-	.current {
-		display: grid;
-		gap: 10px;
+	.current-label {
+		font-family: var(--font-display);
+		font-size: 1.375rem;
+		font-weight: 800;
+		line-height: 1.2;
+		overflow-wrap: break-word;
 		animation: deal 0.2s ease;
+	}
+	.start-over {
+		font-size: 0.8125rem;
+	}
+	.game-head .start-over {
+		position: absolute;
+		top: 8px;
+		right: 12px;
+	}
+	.play {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+		gap: 12px;
+		align-items: start;
+		width: 100%;
+		max-width: 760px;
+	}
+	/* Portrait, like the bracket cards (2:3), as tall as the column of spots */
+	.picture {
+		display: grid;
+		place-items: center;
+		justify-self: center;
+		width: min(100%, calc(var(--play-h) * 2 / 3));
+		height: calc(
+			var(--slots) * var(--slot-h) + (var(--slots) - 1) * var(--gap)
+		);
+		border-radius: var(--radius);
+		background: var(--surface-2);
+		overflow: hidden;
+		animation: deal 0.2s ease;
+	}
+	.picture img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+	.picture.text-only span {
+		padding: 16px;
+		font-family: var(--font-display);
+		font-size: 1.75rem;
+		font-weight: 800;
+		line-height: 1.15;
+		text-align: center;
+		overflow-wrap: break-word;
 	}
 	@keyframes deal {
 		from {
 			opacity: 0;
 		}
 	}
-	/* Portrait, like the bracket cards (2:3) */
-	.current-img {
-		display: grid;
-		place-items: center;
-		aspect-ratio: 2 / 3;
-		border-radius: var(--radius-small);
-		background: var(--surface-2);
-		overflow: hidden;
-	}
-	.current-img img {
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-	}
-	/* No picture: the name itself is the card */
-	.text-only .current-side {
-		padding: 28px 12px 4px;
-	}
-	.text-only .current-label {
-		font-size: 1.75rem;
-		line-height: 1.15;
-	}
-	.current-side {
-		display: grid;
-		gap: 8px;
-		justify-items: center;
-		text-align: center;
-	}
-	.current-side p {
-		margin: 0;
-	}
-	.current-label {
-		font-family: var(--font-display);
-		font-size: 1.25rem;
-		font-weight: 800;
-		overflow-wrap: break-word;
-	}
-	.ask {
-		font-size: 0.9375rem;
-	}
-	.start-over {
-		justify-self: start;
-		margin-top: 12px;
-		font-size: 0.875rem;
-	}
-	.finished {
-		display: grid;
-		gap: 8px;
-	}
-	.finished p {
-		margin: 0;
-	}
-	.done-title {
-		font-family: var(--font-display);
-		font-size: 1.25rem;
-		font-weight: 800;
-	}
-	.skipped-title {
-		font-size: 0.875rem;
-	}
-	.skipped {
-		display: grid;
-		gap: 4px;
-		margin: 0;
-		padding: 0;
-		list-style: none;
-	}
-	.skipped li {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		min-height: 32px;
-		opacity: 0.7;
-		font-size: 0.9375rem;
-	}
 	.slots {
 		display: grid;
-		gap: 6px;
+		grid-auto-rows: var(--slot-h);
+		gap: var(--gap);
 		margin: 0;
 		padding: 0;
 		list-style: none;
@@ -344,111 +332,137 @@
 		display: flex;
 		align-items: center;
 		gap: 10px;
-		min-height: 56px;
-		padding: 6px 10px 6px 6px;
-		border: 1px solid var(--line);
-		border-radius: var(--radius-small);
-		background: var(--surface);
-		transition:
-			border-color 0.15s ease,
-			box-shadow 0.15s ease;
+		min-width: 0;
 	}
-	.slots li.just {
-		border-color: var(--ink);
-		box-shadow: 0 0 0 1px var(--ink);
-	}
-	.rank {
+	.slot {
+		position: relative;
 		flex: none;
 		display: grid;
 		place-items: center;
-		width: 36px;
-		height: 36px;
+		width: calc(var(--slot-h) * 1.25);
+		height: 100%;
+		padding: 0;
+		border: 1px solid var(--line);
 		border-radius: var(--radius-small);
-		background: var(--surface-2);
+		background: var(--surface);
+		color: inherit;
 		font-family: var(--font-display);
+		font-size: 1.125rem;
 		font-weight: 800;
+		overflow: hidden;
 	}
-	.slots li.filled .rank {
-		background: var(--ink);
-		color: var(--bg);
-	}
-	.thumb {
-		flex: none;
-		width: 40px;
-		height: 40px;
-		border-radius: 6px;
-		object-fit: cover;
-		background: var(--surface-2);
-	}
-	.skipped .thumb {
-		width: 28px;
-		height: 28px;
-	}
-	.slot-label {
-		min-width: 0;
-		font-weight: 600;
-		overflow-wrap: anywhere;
-	}
-	.place {
-		flex: 1;
-		align-self: stretch;
-		border: 1px dashed var(--line);
-		border-radius: 6px;
-		background: transparent;
-		color: var(--ink-soft);
-		font: inherit;
-		font-size: 0.9375rem;
+	button.slot {
 		cursor: pointer;
 		-webkit-tap-highlight-color: transparent;
+		transition:
+			border-color 0.12s ease,
+			background 0.12s ease;
 	}
-	.place:hover,
-	.place:focus-visible {
-		border-color: var(--ink-soft);
-		border-style: solid;
-		color: var(--ink);
+	button.slot:hover,
+	button.slot:focus-visible {
+		border-color: var(--ink);
 		background: var(--surface-2);
 	}
-	/* Phones: the item on a strip at the top, the spots underneath */
+	.slot.filled img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+	.slot-text {
+		display: -webkit-box;
+		padding: 2px 4px;
+		font-family: var(--font-body, inherit);
+		font-size: 0.6875rem;
+		font-weight: 600;
+		line-height: 1.1;
+		text-align: center;
+		overflow: hidden;
+		overflow-wrap: anywhere;
+		-webkit-line-clamp: 3;
+		line-clamp: 3;
+		-webkit-box-orient: vertical;
+	}
+	/* The spot number stays visible on a placed item */
+	.badge {
+		position: absolute;
+		top: 2px;
+		left: 2px;
+		min-width: 16px;
+		padding: 0 3px;
+		border-radius: 4px;
+		background: rgb(0 0 0 / 0.7);
+		color: #fff;
+		font-size: 0.6875rem;
+		line-height: 16px;
+		text-align: center;
+	}
+	.slots li.just .slot {
+		border-color: var(--ink);
+		box-shadow: 0 0 0 1px var(--ink);
+	}
+	.slot-label {
+		width: 200px;
+		font-size: 0.9375rem;
+		font-weight: 600;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.skip {
+		min-width: 160px;
+	}
+	.hint {
+		margin: 0;
+		font-size: 0.8125rem;
+	}
+
+	/* Finished */
+	.finished {
+		display: grid;
+		gap: 12px;
+	}
+	.finished-head {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 12px;
+		max-width: 720px;
+	}
+	.done-title {
+		margin: 0;
+		font-family: var(--font-display);
+		font-size: 1.375rem;
+		font-weight: 800;
+	}
+
+	/* Phones: only the spots next to the picture (the names show in the finished list) */
 	@media (max-width: 640px) {
-		.board {
-			grid-template-columns: minmax(0, 1fr);
-			gap: 12px;
+		.game {
+			--play-h: min(480px, 56svh);
 		}
-		.stage {
-			top: 72px;
-			z-index: 3;
-			padding: 12px;
-			box-shadow: 0 8px 16px -8px rgb(0 0 0 / 0.5);
-		}
-		.current {
-			grid-template-columns: 96px minmax(0, 1fr);
-			align-items: center;
-		}
-		.current-side {
-			justify-items: start;
+		.game-head {
+			padding-right: 84px;
 			text-align: left;
 		}
-		.text-only {
-			grid-template-columns: minmax(0, 1fr);
-		}
-		.text-only .current-side {
-			padding: 4px 0 0;
-		}
-		.text-only .current-label {
-			font-size: 1.375rem;
-		}
 		.current-label {
-			font-size: 1.0625rem;
+			font-size: 1.1875rem;
 		}
-		.slots li {
-			min-height: 50px;
+		.play {
+			gap: 8px;
+		}
+		.picture {
+			width: 100%;
+		}
+		.slot-label {
+			display: none;
 		}
 	}
 	@media (prefers-reduced-motion: reduce) {
-		.current {
+		.current-label,
+		.picture {
 			animation: none;
 		}
-		.slots li {
+		button.slot {
 			transition: none;
 		}
 	}
