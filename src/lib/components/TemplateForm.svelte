@@ -3,6 +3,12 @@
 	import ItemsEditor from "./ItemsEditor.svelte";
 	import ItemTile from "./ItemTile.svelte";
 	import { byeCount, MAX_BRACKET_ITEMS, type BracketOrder } from "$lib/bracket";
+	import {
+		BLIND_SLOTS,
+		MIN_BLIND_ITEMS,
+		skipCount,
+		slotCount
+	} from "$lib/blind";
 	import TierControls from "./TierControls.svelte";
 	import { showError, toastFailure } from "$lib/formErrors.svelte";
 	import { appendItemsToForm, MAX_ITEMS, type EditableItem } from "$lib/items";
@@ -51,6 +57,11 @@
 			value: "bracket",
 			label: "Tournament bracket",
 			hint: "Items face off two at a time until one winner is left."
+		},
+		{
+			value: "blind",
+			label: "Blind ranking",
+			hint: "Items show up one at a time. Place each in a top 10 without knowing what’s next."
 		}
 	];
 	// svelte-ignore state_referenced_locally
@@ -58,6 +69,8 @@
 	// svelte-ignore state_referenced_locally
 	let bracketOrder = $state<BracketOrder>(initial.bracketOrder);
 	const isBracket = $derived(format === "bracket");
+	const isBlind = $derived(format === "blind");
+	const formatName = $derived(isBlind ? "blind ranking" : "bracket");
 	const maxItems = $derived(isBracket ? MAX_BRACKET_ITEMS : MAX_ITEMS);
 
 	// The form owns its state after the first render
@@ -88,6 +101,11 @@
 		}
 		if (items.length < 2) {
 			showError("Add at least two items to rank.");
+			cancel();
+			return;
+		}
+		if (isBlind && items.length < MIN_BLIND_ITEMS) {
+			showError(`A blind ranking needs at least ${MIN_BLIND_ITEMS} items.`);
 			cancel();
 			return;
 		}
@@ -251,6 +269,64 @@
 				</p>
 			{/if}
 		</fieldset>
+	{:else if isBlind}
+		<fieldset class="field">
+			<legend class="field-label">Blind ranking</legend>
+			<small
+				>Which order do the items show up in? You can change this later; it only
+				affects new rankings.</small
+			>
+			<input type="hidden" name="bracket_order" value={bracketOrder} />
+			<div class="orders">
+				<label class="order-option">
+					<input
+						type="radio"
+						name="bracket_order_choice"
+						value="shuffled"
+						bind:group={bracketOrder}
+					/>
+					<span
+						><strong>Random for everyone</strong>
+						<span class="muted"
+							>Each ranking gets the items in its own random order.</span
+						></span
+					>
+				</label>
+				<label class="order-option">
+					<input
+						type="radio"
+						name="bracket_order_choice"
+						value="ordered"
+						bind:group={bracketOrder}
+					/>
+					<span
+						><strong>In the order added</strong>
+						<span class="muted"
+							>Everyone gets the items in the same order: the list below. Drag
+							the items to reorder them.</span
+						></span
+					>
+				</label>
+			</div>
+			{#if items.length >= MIN_BLIND_ITEMS}
+				<p class="muted bye-note">
+					{#if skipCount(items.length) === 0}
+						{items.length} items: a top {slotCount(items.length)}, no skipping.
+					{:else}
+						{items.length} items: a top {BLIND_SLOTS}, so {skipCount(
+							items.length
+						)}
+						{skipCount(items.length) === 1 ? "item gets" : "items get"} skipped in
+						each ranking.
+					{/if}
+				</p>
+			{:else}
+				<p class="muted bye-note">
+					Add at least {MIN_BLIND_ITEMS} items. Up to {BLIND_SLOTS} make a top list
+					of that size; with more, people skip the extra ones.
+				</p>
+			{/if}
+		</fieldset>
 	{:else}
 		<fieldset class="field">
 			<legend class="field-label">Tiers</legend>
@@ -269,8 +345,8 @@
 				Items <span class="muted">({items.length})</span>
 			</p>
 			<p class="muted locked-note">
-				The items can’t change once someone has filled out the bracket, because
-				their picks depend on them.
+				The items can’t change once someone has filled out the {formatName},
+				because their picks depend on them.
 			</p>
 			<div class="locked-items">
 				{#each items as item (item.key)}
@@ -335,7 +411,7 @@
 	}
 	.formats {
 		display: grid;
-		grid-template-columns: 1fr 1fr;
+		grid-template-columns: repeat(3, 1fr);
 		gap: 10px;
 	}
 	.format-option,
@@ -389,7 +465,7 @@
 		flex-wrap: wrap;
 		gap: 4px;
 	}
-	@media (max-width: 560px) {
+	@media (max-width: 720px) {
 		.formats {
 			grid-template-columns: 1fr;
 		}

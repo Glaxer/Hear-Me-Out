@@ -109,7 +109,7 @@ create table public.templates (
   -- public: listed in browse/search; unlisted: only reachable with the link
   visibility text not null default 'public' check (visibility in ('public', 'unlisted')),
   -- tier_list: rank items into tiers; bracket: a knockout tournament between the items
-  format text not null default 'tier_list' check (format in ('tier_list', 'bracket')),
+  format text not null default 'tier_list' check (format in ('tier_list', 'bracket', 'blind')),
   -- brackets only: shuffled (random first round) or ordered (order added; last items get byes)
   bracket_order text not null default 'shuffled' check (bracket_order in ('shuffled', 'ordered')),
   -- brackets only: the first round, fixed so everyone fills out the same bracket.

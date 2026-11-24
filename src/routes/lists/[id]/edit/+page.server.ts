@@ -1,5 +1,9 @@
 import { error, fail, redirect } from "@sveltejs/kit";
-import { readBracketForm, readListForm } from "$lib/server/listForm";
+import {
+	readBracketForm,
+	readListForm,
+	readListMeta
+} from "$lib/server/listForm";
 import { isUuid, loadTemplate, loadTierList } from "$lib/server/data";
 import type { Actions, PageServerLoad } from "./$types";
 
@@ -29,10 +33,13 @@ export const actions: Actions = {
 			list.template_id
 		);
 		const form = await request.formData();
+		// A blind ranking can't be re-done: only its title and who can see it change
 		const result =
 			template.format === "bracket"
 				? readBracketForm(form, template.bracket_seed)
-				: readListForm(form, items);
+				: template.format === "blind"
+					? readListMeta(form)
+					: readListForm(form, items);
 		if (!result.ok) return fail(400, { error: result.error });
 
 		const { error: err } = await locals.supabase

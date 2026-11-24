@@ -38,6 +38,8 @@ export interface ExportOptions {
 	};
 	/** A filled-out tournament bracket: drawn as a bracket instead of tiers. */
 	bracket?: { seed: Slot[]; picks: Picks };
+	/** A blind ranking: drawn as a numbered top list, with the skipped items underneath. */
+	blind?: { slots: (string | null)[]; skipped: string[] };
 }
 
 export interface HotTakeRow {
@@ -396,7 +398,11 @@ function drawHeader(
 	opts: ExportOptions,
 	width: number
 ) {
-	const noun = opts.bracket ? "bracket" : "ranking";
+	const noun = opts.bracket
+		? "bracket"
+		: opts.blind
+			? "blind ranking"
+			: "ranking";
 	ctx.textAlign = "left";
 	ctx.textBaseline = "alphabetic";
 	ctx.fillStyle = COLORS.ink;
@@ -731,9 +737,141 @@ async function renderBracketImage(
 	return toPng(canvas);
 }
 
+// Blind ranking picture: a numbered top list, then the skipped items in a smaller grid
+const L_WIDTH = 1080;
+const L_ROW_H = 84;
+const L_ROW_GAP = 8;
+const L_RANK_W = 64;
+const L_SKIP_HEAD_H = 64;
+const L_SKIP_COLS = 3;
+const L_SKIP_ROW_H = 48;
+const L_SKIP_MAX = 18;
+
+async function renderBlindImage(
+	opts: ExportOptions,
+	slots: (string | null)[],
+	skipped: string[]
+): Promise<Blob> {
+	await Promise.all([
+		document.fonts.load(`800 40px ${DISPLAY}`),
+		document.fonts.load(`700 22px ${BODY}`),
+		document.fonts.load(`500 16px ${BODY}`)
+	]).catch(() => undefined);
+
+	const byId = new Map(opts.items.map((i) => [i.id, i]));
+	const shownSkipped = skipped.filter((id) => byId.has(id));
+	const skippedHere = shownSkipped.slice(0, L_SKIP_MAX);
+	const pictures = new Map<string, ImageBitmap | null>();
+	await Promise.all(
+		[...slots.filter((s): s is string => !!s), ...skippedHere].map(
+			async (id) => {
+				pictures.set(id, await loadPicture(byId.get(id)?.image_path ?? null));
+			}
+		)
+	);
+
+	const listH = slots.length * L_ROW_H + (slots.length - 1) * L_ROW_GAP;
+	const skipRows = Math.ceil(skippedHere.length / L_SKIP_COLS);
+	const more = shownSkipped.length - skippedHere.length;
+	const skipH = shownSkipped.length
+		? L_SKIP_HEAD_H + skipRows * L_SKIP_ROW_H + (more > 0 ? 32 : 0)
+		: 0;
+	const top = PAD + HEADER_H;
+	const height = top + listH + skipH + FOOTER_H + PAD / 2;
+
+	const canvas = document.createElement("canvas");
+	canvas.width = L_WIDTH * SCALE;
+	canvas.height = height * SCALE;
+	const ctx = canvas.getContext("2d")!;
+	ctx.scale(SCALE, SCALE);
+	ctx.fillStyle = COLORS.bg;
+	ctx.fillRect(0, 0, L_WIDTH, height);
+	drawHeader(ctx, opts, L_WIDTH);
+
+	// The top list
+	const rowW = L_WIDTH - PAD * 2;
+	slots.forEach((id, i) => {
+		const y = top + i * (L_ROW_H + L_ROW_GAP);
+		ctx.fillStyle = COLORS.surface;
+		ctx.beginPath();
+		ctx.roundRect(PAD, y, rowW, L_ROW_H, 12);
+		ctx.fill();
+		// Number
+		ctx.fillStyle = i === 0 ? "#f5c84c" : COLORS.ink;
+		ctx.font = `800 34px ${DISPLAY}`;
+		ctx.textAlign = "center";
+		ctx.textBaseline = "middle";
+		ctx.fillText(String(i + 1), PAD + L_RANK_W / 2 + 4, y + L_ROW_H / 2 + 2);
+		const item = id ? byId.get(id) : null;
+		let textX = PAD + L_RANK_W + 12;
+		const picture = id ? pictures.get(id) : null;
+		if (picture) {
+			const size = L_ROW_H - 16;
+			drawCover(ctx, picture, textX, y + 8, size, size, 8);
+			textX += size + 16;
+		}
+		ctx.textAlign = "left";
+		ctx.fillStyle = item ? COLORS.ink : COLORS.inkSoft;
+		const label = fitText(
+			ctx,
+			item?.label ?? "—",
+			BODY,
+			700,
+			{ w: PAD + rowW - 20 - textX, h: L_ROW_H - 16 },
+			26,
+			16,
+			1.15
+		);
+		ctx.font = `700 ${label.size}px ${BODY}`;
+		drawLines(ctx, label.lines, textX, y + L_ROW_H / 2, label.size, 1.15);
+	});
+
+	// Skipped items
+	if (shownSkipped.length) {
+		let y = top + listH + 28;
+		ctx.textAlign = "left";
+		ctx.textBaseline = "alphabetic";
+		ctx.fillStyle = COLORS.inkSoft;
+		ctx.font = `700 20px ${BODY}`;
+		ctx.fillText(`Skipped (${shownSkipped.length})`, PAD, y + 8);
+		y += L_SKIP_HEAD_H - 28;
+		const colW = (L_WIDTH - PAD * 2) / L_SKIP_COLS;
+		skippedHere.forEach((id, i) => {
+			const x = PAD + (i % L_SKIP_COLS) * colW;
+			const rowY = y + Math.floor(i / L_SKIP_COLS) * L_SKIP_ROW_H;
+			let textX = x;
+			const picture = pictures.get(id);
+			if (picture) {
+				drawCover(ctx, picture, x, rowY, 36, 36, 6);
+				textX += 46;
+			}
+			ctx.fillStyle = COLORS.inkSoft;
+			ctx.textBaseline = "middle";
+			ctx.font = `500 16px ${BODY}`;
+			const [line] = clampLines(
+				ctx,
+				wrap(ctx, byId.get(id)?.label ?? "", colW - (textX - x) - 12),
+				1,
+				colW - (textX - x) - 12
+			);
+			ctx.fillText(line ?? "", textX, rowY + 18);
+		});
+		if (more > 0) {
+			ctx.textBaseline = "middle";
+			ctx.fillText(`+ ${more} more`, PAD, y + skipRows * L_SKIP_ROW_H + 8);
+		}
+	}
+
+	drawFooter(ctx, opts, height - PAD / 2 - FOOTER_H / 2 + 6);
+	pictures.forEach((p) => p?.close());
+	return toPng(canvas);
+}
+
 export async function renderTierListImage(opts: ExportOptions): Promise<Blob> {
 	if (opts.bracket)
 		return renderBracketImage(opts, opts.bracket.seed, opts.bracket.picks);
+	if (opts.blind)
+		return renderBlindImage(opts, opts.blind.slots, opts.blind.skipped);
 	// Make sure the site's fonts are ready before measuring or drawing text
 	await Promise.all([
 		document.fonts.load(`800 40px ${DISPLAY}`),

@@ -1,3 +1,4 @@
+import type { BlindState } from "./blind";
 import type { BracketOrder, Picks, Slot } from "./bracket";
 import type { ListVisibility, Placements, TemplateFormat, Tier } from "./types";
 
@@ -27,6 +28,8 @@ export interface QuickDraft {
 	/** Brackets: the first round and the picks so far, both with item keys. */
 	seed?: Slot[] | null;
 	picks?: Picks;
+	/** Blind rankings: the order and spots so far, with item keys. */
+	blind?: BlindState | null;
 	updatedAt: number;
 }
 

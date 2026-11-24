@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from "$app/forms";
 	import { showError } from "$lib/formErrors.svelte";
+	import { formatChip } from "$lib/formats";
 	import { imageUrl } from "$lib/images";
 	import { toast } from "$lib/toast.svelte";
 	import type { Template } from "$lib/types";
@@ -95,7 +96,9 @@
 		<h3>{template.title}</h3>
 		<div class="meta">
 			<span class="chip">{template.category}</span>
-			{#if template.format === "bracket"}<span class="chip">Bracket</span>{/if}
+			{#if formatChip(template.format)}<span class="chip"
+					>{formatChip(template.format)}</span
+				>{/if}
 			<span class="muted">
 				{template.list_count}
 				{template.list_count === 1 ? "list" : "lists"}

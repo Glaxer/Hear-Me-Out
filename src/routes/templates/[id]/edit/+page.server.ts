@@ -14,9 +14,10 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const { template, items } = await loadTemplate(locals.supabase, params.id);
 	if (template.owner_id !== locals.user?.id)
 		error(403, "Only the person who made this template can edit it");
-	// A bracket's items can't change once someone has filled it out: their picks depend on them
+	// A bracket's or blind ranking's items can't change once someone has filled it out:
+	// their picks depend on them
 	const itemsLocked =
-		template.format === "bracket" &&
+		template.format !== "tier_list" &&
 		(await hasAnyRankings(locals.supabase, template.id));
 	return { template, items, itemsLocked };
 };
@@ -40,8 +41,10 @@ export const actions: Actions = {
 		let { items } = result.value;
 		// The format is chosen when the template is made and can't change afterwards
 		const isBracket = template.format === "bracket";
+		const isBlind = template.format === "blind";
 		const itemsLocked =
-			isBracket && (await hasAnyRankings(locals.supabase, params.id));
+			template.format !== "tier_list" &&
+			(await hasAnyRankings(locals.supabase, params.id));
 		// Locked: keep the items exactly as they are, whatever the form sent
 		if (itemsLocked)
 			items = existing.map((i) => ({
@@ -77,8 +80,11 @@ export const actions: Actions = {
 				category,
 				visibility,
 				default_tiers: tiers,
-				// Brackets: the order setting can only change while the items can
-				...(isBracket && !itemsLocked ? { bracket_order: bracketOrder } : {})
+				// Brackets: the order setting can only change while the items can.
+				// Blind rankings: it only affects rankings made from now on, so it can always change.
+				...((isBracket && !itemsLocked) || isBlind
+					? { bracket_order: bracketOrder }
+					: {})
 			})
 			.eq("id", params.id);
 		if (templateError)

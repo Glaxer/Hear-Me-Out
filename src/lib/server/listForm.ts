@@ -1,4 +1,5 @@
 import { parsePicks, type Slot } from "$lib/bracket";
+import { parseBlindSlots } from "$lib/blind";
 import { parsePlacements, parseTiers } from "$lib/tiers";
 import type {
 	ListVisibility,
@@ -82,4 +83,51 @@ export function readBracketForm(
 		ok: true,
 		value: { title, visibility, tiers: [], placements: {}, picks }
 	};
+}
+
+/** Reads and validates a finished blind ranking: every spot of the top list filled. */
+export function readBlindForm(
+	form: FormData,
+	items: TemplateItem[]
+):
+	| {
+			ok: true;
+			value: {
+				title: string;
+				visibility: ListVisibility;
+				tiers: Tier[];
+				placements: Placements;
+				picks: string[];
+			};
+	  }
+	| { ok: false; error: string } {
+	const title = String(form.get("title") ?? "").trim();
+	const visibility = parseListVisibility(form.get("visibility"));
+	if (!title || title.length > 100)
+		return {
+			ok: false,
+			error: "Give your blind ranking a title (max 100 characters)."
+		};
+	const picks = parseBlindSlots(
+		form.get("picks"),
+		items.map((i) => i.id)
+	);
+	if (!picks) return { ok: false, error: "Fill every spot first." };
+	return {
+		ok: true,
+		value: { title, visibility, tiers: [], placements: {}, picks }
+	};
+}
+
+/** Just the title and who can see it (editing a saved blind ranking). */
+export function readListMeta(
+	form: FormData
+):
+	| { ok: true; value: { title: string; visibility: ListVisibility } }
+	| { ok: false; error: string } {
+	const title = String(form.get("title") ?? "").trim();
+	const visibility = parseListVisibility(form.get("visibility"));
+	if (!title || title.length > 100)
+		return { ok: false, error: "Give it a title (max 100 characters)." };
+	return { ok: true, value: { title, visibility } };
 }

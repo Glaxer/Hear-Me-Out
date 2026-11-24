@@ -1,13 +1,15 @@
 import { fail, redirect } from "@sveltejs/kit";
 import { needsUsername } from "$lib/server/auth";
 import { parsePicks, seedMatchesItems, type Slot } from "$lib/bracket";
+import { parseBlindSlots } from "$lib/blind";
+import { formatNoun } from "$lib/formats";
 import { readTemplateForm } from "$lib/server/templateForm";
 import { parsePlacements } from "$lib/tiers";
 import type { Actions } from "./$types";
 
 /**
- * Quick tier lists and brackets are made in the browser. Saving one creates a link-only
- * template (so it doesn't show up in browse) with the items, plus the tier list or bracket.
+ * Quick tier lists, brackets and blind rankings are made in the browser. Saving one creates a
+ * link-only template (so it doesn't show up in browse) with the items, plus the ranking itself.
  */
 export const actions: Actions = {
 	default: async ({ request, locals }) => {
@@ -30,7 +32,10 @@ export const actions: Actions = {
 		// Checked here first: the template form would ask for a "template" title
 		const formTitle = String(form.get("title") ?? "").trim();
 		if (!formTitle || formTitle.length > 100) {
-			const noun = form.get("format") === "bracket" ? "bracket" : "tier list";
+			const rawFormat = form.get("format");
+			const noun = formatNoun(
+				rawFormat === "bracket" || rawFormat === "blind" ? rawFormat : null
+			);
 			return fail(400, {
 				error: `Give your ${noun} a title (max 100 characters).`
 			});
@@ -40,6 +45,7 @@ export const actions: Actions = {
 		if (!result.ok) return fail(400, { error: result.error });
 		const { title, tiers, items, format, bracketOrder } = result.value;
 		const isBracket = format === "bracket";
+		const isBlind = format === "blind";
 		const listVisibility =
 			form.get("list_visibility") === "private" ? "private" : "unlisted";
 
@@ -50,9 +56,14 @@ export const actions: Actions = {
 				error: "Something went wrong reading your items. Please try again."
 			});
 		// Tier list: placements. Bracket: the first round and the picks made in the browser.
-		const byKey = isBracket
-			? {}
-			: parsePlacements(form.get("placements"), tiers, new Set(keys));
+		const byKey =
+			isBracket || isBlind
+				? {}
+				: parsePlacements(form.get("placements"), tiers, new Set(keys));
+		// Blind ranking: the filled top list, with item keys
+		const blindKeys = isBlind ? parseBlindSlots(form.get("picks"), keys) : null;
+		if (isBlind && !blindKeys)
+			return fail(400, { error: "Fill every spot first." });
 		let seedKeys: Slot[] | null = null;
 		let picksKeys: string[] | null = null;
 		if (isBracket) {
@@ -92,7 +103,7 @@ export const actions: Actions = {
 			.single();
 		if (error || !template)
 			return fail(500, {
-				error: `Could not save your ${isBracket ? "bracket" : "tier list"}. Please try again.`
+				error: `Could not save your ${formatNoun(format)}. Please try again.`
 			});
 
 		const { data: inserted, error: itemsError } = await locals.supabase
@@ -144,9 +155,13 @@ export const actions: Actions = {
 				template_id: template.id,
 				owner_id: user.id,
 				title,
-				tiers: isBracket ? [] : tiers,
-				placements: isBracket ? {} : placements,
-				picks: isBracket ? picksKeys!.map(toId) : null,
+				tiers: isBracket || isBlind ? [] : tiers,
+				placements: isBracket || isBlind ? {} : placements,
+				picks: isBracket
+					? picksKeys!.map(toId)
+					: isBlind
+						? blindKeys!.map(toId)
+						: null,
 				visibility: listVisibility
 			})
 			.select("id")
@@ -155,7 +170,7 @@ export const actions: Actions = {
 		if (listError || !list) {
 			await locals.supabase.from("templates").delete().eq("id", template.id);
 			return fail(500, {
-				error: `Could not save your ${isBracket ? "bracket" : "tier list"}. Please try again.`
+				error: `Could not save your ${formatNoun(format)}. Please try again.`
 			});
 		}
 
