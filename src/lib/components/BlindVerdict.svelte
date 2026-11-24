@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { imageUrl } from "$lib/images";
+	import PeekButton from "./PeekButton.svelte";
 	import type { BlindVerdictRow } from "$lib/blind";
 	import type { TemplateItem } from "$lib/types";
 
@@ -72,6 +73,9 @@
 			<a class="btn" href="/templates/{templateId}/rank"
 				>{loggedIn ? "Start blind ranking" : "Try it to see"}</a
 			>
+			{#if total}<PeekButton
+					what="your picks, and it shows which items are coming"
+				/>{/if}
 		</div>
 	{:else if status === "waiting"}
 		<div class="card locked">
