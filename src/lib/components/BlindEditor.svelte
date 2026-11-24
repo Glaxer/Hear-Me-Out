@@ -91,16 +91,36 @@
 		setTimeout(() => (justPlaced = null), 220);
 	}
 
+	/**
+	 * "Start over" asks first, right where the button is. (A browser confirm() dialog would
+	 * freeze the page while it's open, which shows up as a slow interaction.)
+	 */
+	let confirmingStartOver = $state(false);
 	function startOver() {
-		if (
-			!confirm(
-				"Start over? Your ranking so far is cleared and the items start again."
-			)
-		)
-			return;
+		confirmingStartOver = false;
 		update(null);
 	}
 </script>
+
+{#snippet startOverButton()}
+	<span class="start-over">
+		{#if confirmingStartOver}
+			<span class="muted">Start over?</span>
+			<button type="button" class="link-button" onclick={startOver}>Yes</button>
+			<button
+				type="button"
+				class="link-button muted"
+				onclick={() => (confirmingStartOver = false)}>No</button
+			>
+		{:else}
+			<button
+				type="button"
+				class="link-button muted"
+				onclick={() => (confirmingStartOver = true)}>Start over</button
+			>
+		{/if}
+	</span>
+{/snippet}
 
 <div class="blind-editor">
 	{#if !ranking}
@@ -133,24 +153,21 @@
 		<div class="finished">
 			<div class="finished-head">
 				<p class="done-title">Your top {ranking.slots.length} is set</p>
-				<button
-					type="button"
-					class="link-button muted start-over"
-					onclick={startOver}>Start over</button
-				>
+				{@render startOverButton()}
 			</div>
 			<BlindView slots={ranking.slots} {items} />
 		</div>
 	{:else}
 		<div class="game" style:--slots={ranking.slots.length} bind:this={gameEl}>
 			<div class="game-head card">
-				<p class="muted progress-text">{progress}</p>
+				<!-- While asking "Start over?", the question takes the progress line (room on phones) -->
+				{#if confirmingStartOver}
+					<p class="progress-text">{@render startOverButton()}</p>
+				{:else}
+					<p class="muted progress-text">{progress}</p>
+					<span class="corner">{@render startOverButton()}</span>
+				{/if}
 				{#key item?.id}<p class="current-label">{item?.label}</p>{/key}
-				<button
-					type="button"
-					class="link-button muted start-over"
-					onclick={startOver}>Start over</button
-				>
 			</div>
 
 			<div class="play">
@@ -183,6 +200,7 @@
 								</span>
 								<span class="slot-label">{placed.label}</span>
 							{:else}
+								<!-- Empty name: keeps the column the same width before and after placing -->
 								<button
 									type="button"
 									class="slot empty"
@@ -190,6 +208,7 @@
 									aria-label="Put {item?.label ?? 'it'} at number {i + 1}"
 									>{i + 1}</button
 								>
+								<span class="slot-label" aria-hidden="true"></span>
 							{/if}
 						</li>
 					{/each}
@@ -272,9 +291,15 @@
 		animation: deal 0.2s ease;
 	}
 	.start-over {
+		display: inline-flex;
+		gap: 8px;
 		font-size: 0.8125rem;
+		white-space: nowrap;
 	}
-	.game-head .start-over {
+	.start-over button {
+		font-size: inherit;
+	}
+	.game-head .corner {
 		position: absolute;
 		top: 8px;
 		right: 12px;
