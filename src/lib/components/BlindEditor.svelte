@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { tick, untrack } from "svelte";
 	import BlindView from "./BlindView.svelte";
+	import ConfirmDialog from "./ConfirmDialog.svelte";
 	import { imageUrl } from "$lib/images";
 	import {
 		currentItem,
@@ -91,36 +92,27 @@
 		setTimeout(() => (justPlaced = null), 220);
 	}
 
-	/**
-	 * "Start over" asks first, right where the button is. (A browser confirm() dialog would
-	 * freeze the page while it's open, which shows up as a slow interaction.)
-	 */
-	let confirmingStartOver = $state(false);
-	function startOver() {
-		confirmingStartOver = false;
-		update(null);
-	}
+	/** "Start over" asks first, in the site's own popup (the browser's confirm() freezes the page). */
+	let startOverDialog = $state<ReturnType<typeof ConfirmDialog>>();
 </script>
 
 {#snippet startOverButton()}
-	<span class="start-over">
-		{#if confirmingStartOver}
-			<span class="muted">Start over?</span>
-			<button type="button" class="link-button" onclick={startOver}>Yes</button>
-			<button
-				type="button"
-				class="link-button muted"
-				onclick={() => (confirmingStartOver = false)}>No</button
-			>
-		{:else}
-			<button
-				type="button"
-				class="link-button muted"
-				onclick={() => (confirmingStartOver = true)}>Start over</button
-			>
-		{/if}
-	</span>
+	<button
+		type="button"
+		class="link-button muted start-over"
+		onclick={() => startOverDialog?.open()}>Start over</button
+	>
 {/snippet}
+
+<ConfirmDialog
+	bind:this={startOverDialog}
+	title="Start over?"
+	message="Your ranking so far is cleared, and the items start again from the beginning."
+	confirmLabel="Start over"
+	cancelLabel="Keep going"
+	danger
+	onconfirm={() => update(null)}
+/>
 
 <div class="blind-editor">
 	{#if !ranking}
@@ -160,13 +152,8 @@
 	{:else}
 		<div class="game" style:--slots={ranking.slots.length} bind:this={gameEl}>
 			<div class="game-head card">
-				<!-- While asking "Start over?", the question takes the progress line (room on phones) -->
-				{#if confirmingStartOver}
-					<p class="progress-text">{@render startOverButton()}</p>
-				{:else}
-					<p class="muted progress-text">{progress}</p>
-					<span class="corner">{@render startOverButton()}</span>
-				{/if}
+				<p class="muted progress-text">{progress}</p>
+				<span class="corner">{@render startOverButton()}</span>
 				{#key item?.id}<p class="current-label">{item?.label}</p>{/key}
 			</div>
 
@@ -291,13 +278,8 @@
 		animation: deal 0.2s ease;
 	}
 	.start-over {
-		display: inline-flex;
-		gap: 8px;
 		font-size: 0.8125rem;
 		white-space: nowrap;
-	}
-	.start-over button {
-		font-size: inherit;
 	}
 	.game-head .corner {
 		position: absolute;
