@@ -11,7 +11,8 @@
 	let {
 		list,
 		items,
-		bracket = false
+		bracket = false,
+		blind = false
 	}: {
 		list: {
 			tiers: Tier[];
@@ -20,6 +21,8 @@
 		};
 		items: TemplateItem[];
 		bracket?: boolean;
+		/** A blind ranking: shows the top 3. */
+		blind?: boolean;
 	} = $props();
 
 	const byId = $derived(new Map(items.map((i) => [i.id, i])));
@@ -36,7 +39,22 @@
 	});
 </script>
 
-{#if bracket}
+{#if blind}
+	<ol class="blind-top">
+		{#each (list.picks ?? []).slice(0, 3) as id, i (i)}
+			{@const item = id ? byId.get(id) : null}
+			<li>
+				<span class="num">{i + 1}</span>
+				{#if item?.image_path}<img
+						src={imageUrl(item.image_path)}
+						alt=""
+						loading="lazy"
+					/>{/if}
+				<span class="blind-label">{item?.label ?? "—"}</span>
+			</li>
+		{/each}
+	</ol>
+{:else if bracket}
 	<div class="champ">
 		{#if winner}
 			{#if winner.image_path}
@@ -65,6 +83,42 @@
 {/if}
 
 <style>
+	.blind-top {
+		display: grid;
+		gap: 4px;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+	.blind-top li {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		min-height: 32px;
+		font-size: 0.9375rem;
+	}
+	.blind-top .num {
+		flex: none;
+		width: 20px;
+		font-family: var(--font-display);
+		font-weight: 800;
+		text-align: center;
+		color: var(--ink-soft);
+	}
+	.blind-top img {
+		flex: none;
+		width: 32px;
+		height: 32px;
+		border-radius: 6px;
+		object-fit: cover;
+		background: var(--surface-2);
+	}
+	.blind-label {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
 	.champ {
 		display: flex;
 		align-items: center;

@@ -1,6 +1,7 @@
 import { error, fail, redirect } from "@sveltejs/kit";
 import { IMAGE_BUCKET } from "$lib/images";
 import { isUuid, loadCountableRankings, loadTemplate } from "$lib/server/data";
+import { blindVerdict, slotCount, type BlindVerdictRow } from "$lib/blind";
 import type { TierList } from "$lib/types";
 import { computeVerdict, VERDICT_MIN_LISTS, type Verdict } from "$lib/verdict";
 import { championTally } from "$lib/bracket";
@@ -35,8 +36,26 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	let verdictState: "locked" | "waiting" | "ready" = "locked";
 	// Brackets: who people picked as the champion (same rule: only once you've filled it out)
 	const isBracket = template.format === "bracket";
+	const isBlind = template.format === "blind";
 	const tally = isBracket && viewerHasRanked ? championTally(counted) : [];
-	if (viewerHasRanked && !isBracket) {
+	// Blind rankings: everyone's top lists combined, and the most skipped items
+	let blind: {
+		rows: BlindVerdictRow[];
+		mostSkipped: BlindVerdictRow[];
+		slots: number;
+	} | null = null;
+	if (isBlind && viewerHasRanked) {
+		verdictState = counted.length >= VERDICT_MIN_LISTS ? "ready" : "waiting";
+		if (verdictState === "ready")
+			blind = {
+				...blindVerdict(
+					items.map((i) => i.id),
+					counted
+				),
+				slots: slotCount(items.length)
+			};
+	}
+	if (viewerHasRanked && template.format === "tier_list") {
 		verdictState = counted.length >= VERDICT_MIN_LISTS ? "ready" : "waiting";
 		if (verdictState === "ready") {
 			verdict = computeVerdict(
@@ -66,6 +85,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		verdict,
 		verdictState,
 		tally,
+		blind,
 		// Others' rankings are blurred until then too (they can still be opened)
 		viewerHasRanked,
 		rankingCount: counted.length,

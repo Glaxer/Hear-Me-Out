@@ -1,3 +1,4 @@
+import type { BlindState } from "./blind";
 import type { ListVisibility, Placements, Tier } from "./types";
 
 /**
@@ -12,6 +13,8 @@ export interface RankDraft {
 	placements: Placements;
 	/** Bracket templates: the winner of every match picked so far. */
 	picks?: (string | null)[];
+	/** Blind rankings: the order the items are shown in and the spots filled so far. */
+	blind?: BlindState | null;
 	savedAt: number;
 }
 

@@ -1,5 +1,10 @@
 import { error, fail, redirect } from "@sveltejs/kit";
-import { readBracketForm, readListForm } from "$lib/server/listForm";
+import {
+	readBlindForm,
+	readBracketForm,
+	readListForm
+} from "$lib/server/listForm";
+import { formatNoun } from "$lib/formats";
 import { isUuid, loadTemplate } from "$lib/server/data";
 import { needsUsername } from "$lib/server/auth";
 import type { Actions, PageServerLoad } from "./$types";
@@ -26,7 +31,9 @@ export const actions: Actions = {
 		const result =
 			template.format === "bracket"
 				? readBracketForm(form, template.bracket_seed)
-				: readListForm(form, items);
+				: template.format === "blind"
+					? readBlindForm(form, items)
+					: readListForm(form, items);
 		if (!result.ok) return fail(400, { error: result.error });
 
 		const { data, error: err } = await locals.supabase
@@ -37,7 +44,7 @@ export const actions: Actions = {
 
 		if (err || !data)
 			return fail(500, {
-				error: `Could not save your ${template.format === "bracket" ? "bracket" : "tier list"}. Please try again.`
+				error: `Could not save your ${formatNoun(template.format)}. Please try again.`
 			});
 		redirect(303, `/lists/${data.id}?saved=1`);
 	}

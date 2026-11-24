@@ -1,4 +1,5 @@
 import { MAX_BRACKET_ITEMS, type BracketOrder } from "$lib/bracket";
+import { MIN_BLIND_ITEMS } from "$lib/blind";
 import { MAX_ITEMS } from "$lib/items";
 import { CATEGORIES, parseTiers } from "$lib/tiers";
 import type { TemplateFormat, TemplateVisibility, Tier } from "$lib/types";
@@ -34,8 +35,9 @@ export function readTemplateForm(
 	const category = String(form.get("category") ?? "Other");
 	const tiers = parseTiers(form.get("tiers"));
 	const visibility = parseTemplateVisibility(form.get("visibility"));
+	const rawFormat = form.get("format");
 	const format: TemplateFormat =
-		form.get("format") === "bracket" ? "bracket" : "tier_list";
+		rawFormat === "bracket" || rawFormat === "blind" ? rawFormat : "tier_list";
 	const bracketOrder: BracketOrder =
 		form.get("bracket_order") === "ordered" ? "ordered" : "shuffled";
 	const maxItems = format === "bracket" ? MAX_BRACKET_ITEMS : MAX_ITEMS;
@@ -61,6 +63,11 @@ export function readTemplateForm(
 		return { ok: false, error: "Every tier needs a name and a colour." };
 	if (labels.length < 2)
 		return { ok: false, error: "Add at least two items to rank." };
+	if (format === "blind" && labels.length < MIN_BLIND_ITEMS)
+		return {
+			ok: false,
+			error: `A blind ranking needs at least ${MIN_BLIND_ITEMS} items.`
+		};
 	if (labels.length > maxItems)
 		return {
 			ok: false,

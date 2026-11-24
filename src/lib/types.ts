@@ -9,7 +9,8 @@ export type Placements = Record<string, string[]>;
 
 export type TemplateVisibility = "public" | "unlisted";
 /** tier_list: rank items into tiers; bracket: a knockout tournament between the items. */
-export type TemplateFormat = "tier_list" | "bracket";
+/** "blind": a blind ranking, a top 10 filled one item at a time (see $lib/blind). */
+export type TemplateFormat = "tier_list" | "bracket" | "blind";
 export type ListVisibility = "public" | "unlisted" | "private";
 
 export interface TemplateItem {

@@ -15,7 +15,7 @@
 	<a href="/templates/{data.template.id}">← {data.template.title}</a>
 </p>
 <h1>Edit template</h1>
-{#if data.template.format !== "bracket"}
+{#if data.template.format === "tier_list"}
 	<p class="muted intro">
 		New items show up as unranked in rankings people have already made. Removing
 		an item also removes it from those rankings.

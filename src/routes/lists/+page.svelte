@@ -42,6 +42,7 @@
 					{list}
 					items={list.templates?.template_items ?? []}
 					bracket={list.templates?.format === "bracket"}
+					blind={list.templates?.format === "blind"}
 				/>
 			</a>
 		{/each}

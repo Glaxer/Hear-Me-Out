@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import { page } from "$app/state";
+	import BlindForm from "$lib/components/BlindForm.svelte";
 	import BracketForm from "$lib/components/BracketForm.svelte";
+	import { restoreBlind } from "$lib/blind";
 	import ListForm from "$lib/components/ListForm.svelte";
 	import { hasPlacements, loadRankDraft, type RankDraft } from "$lib/drafts";
 	import type { ActionData, PageData } from "./$types";
@@ -9,12 +11,15 @@
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	const isBracket = $derived(data.template.format === "bracket");
+	const isBlind = $derived(data.template.format === "blind");
 	/** Whether the draft has any of your own picks in it (byes don't count). */
 	const draftHasWork = (d: RankDraft) =>
 		isBracket
 			? (d.picks ?? []).filter(Boolean).length >
 				(data.template.bracket_seed ?? []).filter((s) => s === null).length
-			: hasPlacements(d.placements);
+			: isBlind
+				? !!d.blind
+				: hasPlacements(d.placements);
 
 	const guestTitle = $derived(
 		`My ${data.template.title} ranking`.slice(0, 100)
@@ -28,6 +33,15 @@
 	// An unsaved ranking from earlier (browser storage only exists in the browser, so read it after load)
 	let draft = $state.raw<RankDraft | null>(null);
 	let autoSubmit = $state(false);
+	/** A blind ranking in progress from the draft, if it still fits the items. */
+	const draftBlind = $derived(
+		draft?.blind
+			? restoreBlind(
+					draft.blind,
+					data.items.map((i) => i.id)
+				)
+			: null
+	);
 
 	onMount(() => {
 		const saved = loadRankDraft(data.template.id);
@@ -48,7 +62,13 @@
 	<a href="/templates/{data.template.id}">← {data.template.title}</a>
 </p>
 <div class="title-row">
-	<h1>{isBracket ? "Your bracket" : "Your ranking"}</h1>
+	<h1>
+		{isBracket
+			? "Your bracket"
+			: isBlind
+				? "Your blind ranking"
+				: "Your ranking"}
+	</h1>
 	{#if data.user?.id === data.template.owner_id}
 		<a
 			class="btn btn-secondary btn-small"
@@ -70,6 +90,23 @@
 			items={data.items}
 			seed={data.template.bracket_seed}
 			picks={draft?.picks ?? null}
+			title={draft?.title ?? defaultTitle}
+			visibility={draft?.visibility ?? "public"}
+			draftKey={data.template.id}
+			guest={!data.user}
+			submitLabel={data.user ? "Save & get link" : "Save & share"}
+			{autoSubmit}
+			exportInfo={{
+				author: data.username ?? "",
+				templateTitle: data.template.title,
+				link: `${page.url.host}/templates/${data.template.id}`
+			}}
+		/>
+	{:else if isBlind}
+		<BlindForm
+			items={data.items}
+			shuffled={data.template.bracket_order !== "ordered"}
+			blind={draftBlind}
 			title={draft?.title ?? defaultTitle}
 			visibility={draft?.visibility ?? "public"}
 			draftKey={data.template.id}

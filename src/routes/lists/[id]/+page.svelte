@@ -6,6 +6,7 @@
 	import SocialMeta from "$lib/components/SocialMeta.svelte";
 	import TierListView from "$lib/components/TierListView.svelte";
 	import BracketView from "$lib/components/BracketView.svelte";
+	import BlindView from "$lib/components/BlindView.svelte";
 	import { champion } from "$lib/bracket";
 	import { visibilityChip } from "$lib/visibility";
 	import type { PageData } from "./$types";
@@ -19,7 +20,11 @@
 	const isBracket = $derived(
 		data.template.format === "bracket" && !!data.template.bracket_seed
 	);
-	const noun = $derived(isBracket ? "bracket" : "ranking");
+	const isBlind = $derived(data.template.format === "blind");
+	const noun = $derived(
+		isBracket ? "bracket" : isBlind ? "blind ranking" : "ranking"
+	);
+	const blindSlots = $derived(isBlind ? (data.list.picks ?? []) : []);
 	const shareButton = "Share";
 	const championLabel = $derived(
 		isBracket && data.list.picks
@@ -41,6 +46,14 @@
 			isBracket && data.template.bracket_seed
 				? { seed: data.template.bracket_seed, picks: data.list.picks ?? [] }
 				: undefined,
+		blind: isBlind
+			? {
+					slots: blindSlots,
+					skipped: data.items
+						.map((i) => i.id)
+						.filter((id) => !blindSlots.includes(id))
+				}
+			: undefined,
 		hotTakes: data.hotTakes?.length
 			? {
 					heading: `${author}’s hottest takes`,
@@ -69,7 +82,9 @@
 		data.template.visibility !== "public"}
 	description={isBracket
 		? `${author}’s champion of “${data.template.title}”: ${championLabel ?? "?"}. Do you agree? Fill out your own bracket and compare.`
-		: `${author} ranked ${rankedCount} ${rankedCount === 1 ? "item" : "items"} from “${data.template.title}”. Do you agree? Make your own ranking and compare.`}
+		: isBlind
+			? `${author}’s blind top ${blindSlots.length} of “${data.template.title}”, with #1: ${data.items.find((i) => i.id === blindSlots[0])?.label ?? "?"}. Could you do better without knowing what’s next?`
+			: `${author} ranked ${rankedCount} ${rankedCount === 1 ? "item" : "items"} from “${data.template.title}”. Do you agree? Make your own ranking and compare.`}
 />
 
 {#if justSaved}
@@ -98,7 +113,7 @@
 	<div class="row">
 		<ExportImage
 			options={exportOptions}
-			optional={!isBracket && data.hotTakes?.length
+			optional={!isBracket && !isBlind && data.hotTakes?.length
 				? { key: "hotTakes", label: "Include hot takes" }
 				: null}
 			shareUrl={data.list.visibility === "private"
@@ -116,7 +131,11 @@
 				method="POST"
 				action="?/delete"
 				use:enhance={({ cancel }) => {
-					if (!confirm(`Delete this ${isBracket ? "bracket" : "tier list"}?`))
+					if (
+						!confirm(
+							`Delete this ${isBracket ? "bracket" : isBlind ? "blind ranking" : "tier list"}?`
+						)
+					)
 						cancel();
 				}}
 			>
@@ -132,6 +151,8 @@
 		picks={data.list.picks ?? []}
 		items={data.items}
 	/>
+{:else if isBlind}
+	<BlindView slots={blindSlots} items={data.items} />
 {:else}
 	<p class="muted tip">Click an item to see its picture in full size.</p>
 	<TierListView
@@ -143,7 +164,7 @@
 	/>
 {/if}
 
-{#if !isBracket}
+{#if !isBracket && !isBlind}
 	<HotTakes
 		status={data.hotTakesState}
 		takes={data.hotTakes}
@@ -158,16 +179,28 @@
 	<div>
 		<h2>Disagree?</h2>
 		<p class="muted">
-			{isBracket ? "Fill out your own bracket of" : "Make your own ranking of"}
+			{isBracket
+				? "Fill out your own bracket of"
+				: isBlind
+					? "Try your own blind ranking of"
+					: "Make your own ranking of"}
 			{data.template.title} and compare.
 		</p>
 	</div>
 	<div class="row">
 		<a class="btn" href="/templates/{data.template.id}/rank"
-			>{isBracket ? "Fill out my bracket" : "Make my ranking"}</a
+			>{isBracket
+				? "Fill out my bracket"
+				: isBlind
+					? "Try it blind"
+					: "Make my ranking"}</a
 		>
 		<a class="btn btn-secondary" href="/templates/{data.template.id}"
-			>{isBracket ? "See all brackets" : "See all rankings"}</a
+			>{isBracket
+				? "See all brackets"
+				: isBlind
+					? "See all blind rankings"
+					: "See all rankings"}</a
 		>
 	</div>
 </div>

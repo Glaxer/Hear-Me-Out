@@ -6,6 +6,9 @@
 	import SocialMeta from "$lib/components/SocialMeta.svelte";
 	import VerdictSection from "$lib/components/VerdictSection.svelte";
 	import ChampionTally from "$lib/components/ChampionTally.svelte";
+	import BlindVerdict from "$lib/components/BlindVerdict.svelte";
+	import { BLIND_SLOTS, skipCount, slotCount } from "$lib/blind";
+	import { formatChip } from "$lib/formats";
 	import RankingPreview from "$lib/components/RankingPreview.svelte";
 	import BracketView from "$lib/components/BracketView.svelte";
 	import { byeCount, emptyPicks } from "$lib/bracket";
@@ -30,7 +33,10 @@
 	);
 	const unlisted = $derived(data.template.visibility === "unlisted");
 	const isBracket = $derived(data.template.format === "bracket");
-	const noun = $derived(isBracket ? "bracket" : "ranking");
+	const isBlind = $derived(data.template.format === "blind");
+	const noun = $derived(
+		isBracket ? "bracket" : isBlind ? "blind ranking" : "ranking"
+	);
 	let showItems = $state(false);
 	// Brackets: the empty first round, so visitors see the items and how the format works.
 	// Open from the start, unless it's big (it's tall and wide).
@@ -46,14 +52,18 @@
 	description={data.template.description ||
 		(isBracket
 			? `A ${data.items.length}-item tournament bracket. Pick the winners, then see who everyone else crowned.`
-			: `Rank ${data.items.length} items, then see how your picks compare with everyone else’s.`)}
+			: isBlind
+				? `A blind top ${slotCount(data.items.length)}: the items show up one at a time and you place each without knowing what’s next.`
+				: `Rank ${data.items.length} items, then see how your picks compare with everyone else’s.`)}
 />
 
 <div class="head">
 	<div>
 		<p class="row crumbs">
 			<span class="chip">{data.template.category}</span>
-			{#if isBracket}<span class="chip">Bracket</span>{/if}
+			{#if formatChip(data.template.format)}<span class="chip"
+					>{formatChip(data.template.format)}</span
+				>{/if}
 			{#if unlisted}<span class="chip">Link only</span>{/if}
 			<span class="muted"
 				>by {data.template.profiles?.username ?? "someone"}</span
@@ -79,6 +89,8 @@
 			<a class="btn" href="/templates/{data.template.id}/rank">
 				{#if isBracket}
 					{mine.length ? "Fill it out again" : "Fill out the bracket"}
+				{:else if isBlind}
+					{mine.length ? "Try it again" : "Start blind ranking"}
 				{:else}
 					{mine.length ? "Make another ranking" : "Rank this"}
 				{/if}
@@ -169,6 +181,18 @@
 		templateId={data.template.id}
 		loggedIn={!!data.user}
 	/>
+{:else if isBlind}
+	<BlindVerdict
+		status={data.verdictState}
+		rows={data.blind?.rows ?? []}
+		mostSkipped={data.blind?.mostSkipped ?? []}
+		total={data.rankingCount}
+		minRankings={data.minRankings}
+		slots={slotCount(data.items.length)}
+		items={data.items}
+		templateId={data.template.id}
+		loggedIn={!!data.user}
+	/>
 {:else}
 	<VerdictSection
 		status={data.verdictState}
@@ -205,6 +229,37 @@
 			<BracketView {seed} picks={emptyPicks(seed)} items={data.items} />
 		{/if}
 	</section>
+{:else if isBlind}
+	<section class="bracket-preview" aria-labelledby="blind-how-title">
+		<h2 id="blind-how-title">How it works</h2>
+		<p class="muted preview-note">
+			The {data.items.length} items show up one at a time{data.template
+				.bracket_order === "ordered"
+				? ""
+				: ", in a random order"}. Put each one in a free spot of your top {slotCount(
+				data.items.length
+			)} without knowing what’s next. Once placed, it can’t move.{skipCount(
+				data.items.length
+			)
+				? ` Only ${BLIND_SLOTS} fit, so you skip ${skipCount(data.items.length)}.`
+				: ""}
+		</p>
+		<button
+			class="link-button muted"
+			type="button"
+			aria-expanded={showItems}
+			onclick={() => (showItems = !showItems)}
+		>
+			{showItems ? "Hide" : "Show"} the {data.items.length} items (spoilers!)
+		</button>
+		{#if showItems}
+			<div class="items">
+				{#each data.items as item (item.id)}
+					<div class="item-tile"><ItemTile {item} /></div>
+				{/each}
+			</div>
+		{/if}
+	</section>
 {:else}
 	<button
 		class="link-button muted show-items"
@@ -226,7 +281,13 @@
 {#if mine.length}
 	<section class="section">
 		<div class="section-head">
-			<h2>{isBracket ? "Your brackets" : "Your rankings"}</h2>
+			<h2>
+				{isBracket
+					? "Your brackets"
+					: isBlind
+						? "Your blind rankings"
+						: "Your rankings"}
+			</h2>
 		</div>
 		<div class="list-grid">
 			{#each mine as list (list.id)}
@@ -237,7 +298,12 @@
 								>{visibilityChip(list.visibility)}</span
 							>{/if}
 					</div>
-					<RankingPreview {list} items={data.items} bracket={isBracket} />
+					<RankingPreview
+						{list}
+						items={data.items}
+						bracket={isBracket}
+						blind={isBlind}
+					/>
 				</a>
 			{/each}
 		</div>
@@ -247,7 +313,11 @@
 <section class="section">
 	<div class="section-head">
 		<h2>
-			{isBracket ? "Everyone’s brackets" : "Everyone’s rankings"}
+			{isBracket
+				? "Everyone’s brackets"
+				: isBlind
+					? "Everyone’s blind rankings"
+					: "Everyone’s rankings"}
 			<span class="muted">({others.length})</span>
 		</h2>
 	</div>
@@ -257,7 +327,9 @@
 				Blurred until you’ve <a href="/templates/{data.template.id}/rank"
 					>{isBracket
 						? "filled out your own bracket"
-						: "made your own ranking"}</a
+						: isBlind
+							? "done your own blind ranking"
+							: "made your own ranking"}</a
 				>, so they can’t sway your picks. You can still open one to peek.
 			</p>
 		{/if}
@@ -273,7 +345,12 @@
 						<span class="muted">{list.profiles?.username ?? "someone"}</span>
 					</div>
 					<div class="preview" aria-hidden={!data.viewerHasRanked}>
-						<RankingPreview {list} items={data.items} bracket={isBracket} />
+						<RankingPreview
+							{list}
+							items={data.items}
+							bracket={isBracket}
+							blind={isBlind}
+						/>
 						{#if !data.viewerHasRanked}
 							<span class="peek">Click to peek</span>
 						{/if}
@@ -283,8 +360,8 @@
 		</div>
 	{:else}
 		<p class="empty">
-			No one else has {isBracket ? "filled this out" : "ranked this"} yet. Share the
-			link to this page to get opinions!
+			No one else has {isBracket || isBlind ? "done this" : "ranked this"} yet. Share
+			the link to this page to get opinions!
 		</p>
 	{/if}
 </section>

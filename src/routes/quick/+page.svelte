@@ -2,6 +2,7 @@
 	import { enhance } from "$app/forms";
 	import { page } from "$app/state";
 	import { onDestroy, onMount, tick } from "svelte";
+	import BlindEditor from "$lib/components/BlindEditor.svelte";
 	import BracketEditor from "$lib/components/BracketEditor.svelte";
 	import ExportImage from "$lib/components/ExportImage.svelte";
 	import ItemsEditor from "$lib/components/ItemsEditor.svelte";
@@ -21,6 +22,17 @@
 		type Picks,
 		type Slot
 	} from "$lib/bracket";
+	import {
+		BLIND_SLOTS,
+		isDone,
+		MIN_BLIND_ITEMS,
+		restoreBlind,
+		skipCount,
+		skippedItems,
+		slotCount,
+		type BlindState
+	} from "$lib/blind";
+	import { formatNoun } from "$lib/formats";
 	import {
 		clearQuickDraft,
 		loadQuickDraft,
@@ -64,6 +76,10 @@
 	let seed = $state.raw<Slot[] | null>(null);
 	let picks = $state.raw<Picks>([]);
 	const isBracket = $derived(format === "bracket");
+	const isBlind = $derived(format === "blind");
+	// Blind rankings: the order and spots so far (with item keys); null = not started
+	let blind = $state.raw<BlindState | null>(null);
+	const blindDone = $derived(!!blind && isDone(blind));
 	const maxItems = $derived(isBracket ? MAX_BRACKET_ITEMS : MAX_ITEMS);
 	const byes = $derived(byeCount(items.length));
 	const bracketDone = $derived(
@@ -78,8 +94,7 @@
 	let submitting = $state(false);
 	let status = $state<string | null>(null);
 
-	const nounFor = (f: TemplateFormat | undefined) =>
-		f === "bracket" ? "bracket" : "tier list";
+	const nounFor = (f: TemplateFormat | undefined) => formatNoun(f);
 	const titleFor = (f: TemplateFormat) =>
 		data.username ? `${data.username}’s ${nounFor(f)}` : `My ${nounFor(f)}`;
 	const defaultTitle = $derived(titleFor(format));
@@ -100,6 +115,7 @@
 		bracketOrder = draft.bracketOrder ?? "shuffled";
 		seed = draft.seed ?? null;
 		picks = draft.picks ?? [];
+		blind = draft.blind ?? null;
 		items = draft.items.map((i) => ({
 			key: i.key,
 			id: null,
@@ -126,6 +142,7 @@
 		bracketOrder = "shuffled";
 		seed = null;
 		picks = [];
+		blind = null;
 		mode = "setup";
 		phase = "edit";
 	}
@@ -144,7 +161,11 @@
 		const resume = page.url.searchParams.get("resume") === "1";
 		if (draft && resume && data.user) {
 			// Back from logging in after pressing "Save & share": finish saving straight away
-			if (draft.title === "My tier list" || draft.title === "My bracket")
+			if (
+				draft.title === "My tier list" ||
+				draft.title === "My bracket" ||
+				draft.title === "My blind ranking"
+			)
 				draft.title = titleFor(draft.format ?? "tier_list");
 			restore(draft);
 			await tick();
@@ -181,14 +202,15 @@
 			format,
 			bracketOrder,
 			seed,
-			picks
+			picks,
+			blind
 		};
 	}
 	$effect(() => {
 		if (phase !== "edit") return;
 		// Read everything that should trigger a save
 		void [title, visibility, JSON.stringify(tiers), JSON.stringify(placements)];
-		void [format, bracketOrder, seed, picks];
+		void [format, bracketOrder, seed, picks, blind];
 		void items.map((i) => [i.key, i.label, i.blob]);
 		clearTimeout(saveTimer);
 		saveTimer = setTimeout(() => saveQuickDraft(snapshot()), 400);
@@ -236,6 +258,20 @@
 				seed = buildSeed(keys, bracketOrder);
 				picks = emptyPicks(seed);
 			}
+		} else if (isBlind) {
+			if (items.length < MIN_BLIND_ITEMS)
+				return showError(
+					`A blind ranking needs at least ${MIN_BLIND_ITEMS} items.`
+				);
+			// Keep a ranking in progress only if the items are still the same
+			if (
+				blind &&
+				!restoreBlind(
+					blind,
+					items.map((i) => i.key)
+				)
+			)
+				blind = null;
 		} else if (tiers.some((t) => !t.label.trim()))
 			return showError("Every tier needs a name.");
 		placements = cleanPlacements();
@@ -262,7 +298,14 @@
 		placements,
 		items: boardItems,
 		link: page.url.host,
-		bracket: isBracket && seed ? { seed, picks } : undefined
+		bracket: isBracket && seed ? { seed, picks } : undefined,
+		blind:
+			isBlind && blind
+				? {
+						slots: blind.slots,
+						skipped: blindDone ? skippedItems(blind.order, blind.slots) : []
+					}
+				: undefined
 	});
 </script>
 
@@ -273,9 +316,20 @@
 
 <div class="head">
 	<div>
-		<h1>{isBracket ? "Quick bracket" : "Quick tier list"}</h1>
+		<h1>
+			{isBracket
+				? "Quick bracket"
+				: isBlind
+					? "Quick blind ranking"
+					: "Quick tier list"}
+		</h1>
 		<p class="muted lead">
-			{#if mode === "rank" && isBracket}
+			{#if mode === "rank" && isBlind}
+				Place each item without knowing what comes next.
+				{data.user
+					? "Save it to get a link."
+					: "Save it as an image, no account needed."}
+			{:else if mode === "rank" && isBracket}
 				Pick the winner of each match.
 				{data.user
 					? "Save it to get a link."
@@ -321,7 +375,7 @@
 			<fieldset class="field">
 				<legend class="field-label">Format</legend>
 				<div class="formats">
-					{#each [{ value: "tier_list", label: "Tier list", hint: "Sort the items into tiers, from S to D." }, { value: "bracket", label: "Tournament bracket", hint: "Items face off two at a time until one winner is left." }] as f (f.value)}
+					{#each [{ value: "tier_list", label: "Tier list", hint: "Sort the items into tiers, from S to D." }, { value: "bracket", label: "Tournament bracket", hint: "Items face off two at a time until one winner is left." }, { value: "blind", label: "Blind ranking", hint: "Items show up one at a time. Place each in a top 10 without knowing what’s next." }] as f (f.value)}
 						<label class="option" class:chosen={format === f.value}>
 							<input
 								type="radio"
@@ -388,6 +442,54 @@
 						</p>
 					{/if}
 				</fieldset>
+			{:else if isBlind}
+				<fieldset class="field">
+					<legend class="field-label">Blind ranking</legend>
+					<div class="orders">
+						<label class="option">
+							<input
+								type="radio"
+								name="quick_order"
+								value="shuffled"
+								bind:group={bracketOrder}
+							/>
+							<span class="option-text"
+								><strong>Random order</strong>
+								<span class="muted"
+									>The items show up in a random order, so even you don’t know
+									what’s next.</span
+								></span
+							>
+						</label>
+						<label class="option">
+							<input
+								type="radio"
+								name="quick_order"
+								value="ordered"
+								bind:group={bracketOrder}
+							/>
+							<span class="option-text"
+								><strong>In the order added</strong>
+								<span class="muted"
+									>The items show up in the order of the list below.</span
+								></span
+							>
+						</label>
+					</div>
+					<p class="muted bye-note">
+						{#if items.length < MIN_BLIND_ITEMS}
+							Add at least {MIN_BLIND_ITEMS} items. Up to {BLIND_SLOTS} make a top
+							list of that size; with more, you skip the extra ones.
+						{:else if skipCount(items.length) === 0}
+							{items.length} items: a top {slotCount(items.length)}, no
+							skipping.
+						{:else}
+							{items.length} items: a top {BLIND_SLOTS}, so you skip {skipCount(
+								items.length
+							)}.
+						{/if}
+					</p>
+				</fieldset>
 			{:else}
 				<fieldset class="field">
 					<legend class="field-label">Tiers</legend>
@@ -431,6 +533,11 @@
 			use:enhance={async ({ formData, cancel }) => {
 				if (isBracket && !bracketDone) {
 					showError("Pick a winner in every match first.");
+					cancel();
+					return;
+				}
+				if (isBlind && !blindDone) {
+					showError("Fill every spot first.");
 					cancel();
 					return;
 				}
@@ -515,6 +622,22 @@
 						onchange={(p) => (picks = p)}
 					/>
 				{/key}
+			{:else if isBlind}
+				<input type="hidden" name="bracket_order" value={bracketOrder} />
+				<input
+					type="hidden"
+					name="picks"
+					value={JSON.stringify(blind?.slots ?? [])}
+				/>
+				<input type="hidden" name="tiers" value={JSON.stringify(tiers)} />
+				{#key boardKey}
+					<BlindEditor
+						items={boardItems}
+						shuffled={bracketOrder !== "ordered"}
+						initial={blind}
+						onchange={(s) => (blind = s)}
+					/>
+				{/key}
 			{:else}
 				{#key boardKey}
 					<TierEditor
@@ -536,14 +659,14 @@
 				<div class="save-actions">
 					<ExportImage
 						options={exportOptions}
-						noLinkHint={isBracket
-							? "Save your bracket to get a link to share."
-							: "Save your tier list to get a link to share."}
+						noLinkHint={`Save your ${nounFor(format)} to get a link to share.`}
 					/>
 					<button
 						class="btn"
 						type="submit"
-						disabled={submitting || (isBracket && !bracketDone)}
+						disabled={submitting ||
+							(isBracket && !bracketDone) ||
+							(isBlind && !blindDone)}
 					>
 						{status ??
 							(submitting
