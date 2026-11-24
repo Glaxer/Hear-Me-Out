@@ -7,7 +7,7 @@ import { computeVerdict, VERDICT_MIN_LISTS, type Verdict } from "$lib/verdict";
 import { championTally } from "$lib/bracket";
 import type { Actions, PageServerLoad } from "./$types";
 
-export const load: PageServerLoad = async ({ locals, params }) => {
+export const load: PageServerLoad = async ({ locals, params, url }) => {
 	if (!isUuid(params.id)) error(404, "Template not found");
 	const { template, items } = await loadTemplate(locals.supabase, params.id);
 
@@ -32,19 +32,22 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const counted = await loadCountableRankings(locals.supabase, params.id);
 	const viewerHasRanked =
 		!!locals.user && shownLists.some((l) => l.owner_id === locals.user!.id);
+	// "Peek anyway" (?peek=1): show it without ranking first, after a warning in the browser
+	const peeking = !viewerHasRanked && url.searchParams.get("peek") === "1";
+	const revealed = viewerHasRanked || peeking;
 	let verdict: Verdict | null = null;
 	let verdictState: "locked" | "waiting" | "ready" = "locked";
 	// Brackets: who people picked as the champion (same rule: only once you've filled it out)
 	const isBracket = template.format === "bracket";
 	const isBlind = template.format === "blind";
-	const tally = isBracket && viewerHasRanked ? championTally(counted) : [];
+	const tally = isBracket && revealed ? championTally(counted) : [];
 	// Blind rankings: everyone's top lists combined, and the most skipped items
 	let blind: {
 		rows: BlindVerdictRow[];
 		mostSkipped: BlindVerdictRow[];
 		slots: number;
 	} | null = null;
-	if (isBlind && viewerHasRanked) {
+	if (isBlind && revealed) {
 		verdictState = counted.length >= VERDICT_MIN_LISTS ? "ready" : "waiting";
 		if (verdictState === "ready")
 			blind = {
@@ -55,7 +58,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 				slots: slotCount(items.length)
 			};
 	}
-	if (viewerHasRanked && template.format === "tier_list") {
+	if (revealed && template.format === "tier_list") {
 		verdictState = counted.length >= VERDICT_MIN_LISTS ? "ready" : "waiting";
 		if (verdictState === "ready") {
 			verdict = computeVerdict(
@@ -88,6 +91,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		blind,
 		// Others' rankings are blurred until then too (they can still be opened)
 		viewerHasRanked,
+		revealed,
+		peeking,
 		rankingCount: counted.length,
 		minRankings: VERDICT_MIN_LISTS
 	};

@@ -2,6 +2,7 @@
 	import { tick } from "svelte";
 	import { page } from "$app/state";
 	import ExportImage from "./ExportImage.svelte";
+	import PeekButton from "./PeekButton.svelte";
 	import ItemTile from "./ItemTile.svelte";
 	import StackedVotes from "./StackedVotes.svelte";
 	import TierListView from "./TierListView.svelte";
@@ -20,7 +21,8 @@
 		minRankings,
 		templateId,
 		templateTitle,
-		loggedIn
+		loggedIn,
+		peeking = false
 	}: {
 		status: "locked" | "waiting" | "ready";
 		verdict: Verdict | null;
@@ -31,6 +33,8 @@
 		/** Used as the title of the shared picture. */
 		templateTitle: string;
 		loggedIn: boolean;
+		/** Seen through "Peek anyway" without ranking, so don't thank them for ranking. */
+		peeking?: boolean;
 	} = $props();
 
 	const byId = $derived(new Map(items.map((i) => [i.id, i])));
@@ -141,11 +145,12 @@
 					{/if}
 				</p>
 				<a class="btn" href={rankHref}>Rank it to see the verdict</a>
+				{#if rankingCount > 0}<PeekButton />{/if}
 			</div>
 		</div>
 	{:else if status === "waiting"}
 		<div class="card waiting">
-			<h3>Thanks for ranking!</h3>
+			<h3>{peeking ? "Not enough rankings yet" : "Thanks for ranking!"}</h3>
 			<p class="muted">
 				The verdict appears once {minRankings} people have ranked this. {people(
 					rankingCount

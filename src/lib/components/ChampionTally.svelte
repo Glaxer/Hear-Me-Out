@@ -1,5 +1,6 @@
 <script lang="ts">
 	import ItemTile from "./ItemTile.svelte";
+	import PeekButton from "./PeekButton.svelte";
 	import type { TemplateItem } from "$lib/types";
 
 	/**
@@ -48,6 +49,7 @@
 			<a class="btn" href="/templates/{templateId}/rank"
 				>{loggedIn ? "Fill out the bracket" : "Fill it out to see"}</a
 			>
+			{#if total}<PeekButton what="your picks" />{/if}
 		</div>
 	{:else if tally.length}
 		<ol class="tally">

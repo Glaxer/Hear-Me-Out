@@ -172,9 +172,18 @@
 	</div>
 </div>
 
+{#if data.peeking}
+	<p class="peek-note" role="status">
+		<span>👀 You’re peeking. Make your own {noun} to see where you agree.</span>
+		<a href="/templates/{data.template.id}" data-sveltekit-noscroll
+			>Hide it again</a
+		>
+	</p>
+{/if}
+
 {#if isBracket}
 	<ChampionTally
-		status={data.viewerHasRanked ? "ready" : "locked"}
+		status={data.revealed ? "ready" : "locked"}
 		tally={data.tally}
 		total={data.rankingCount}
 		items={data.items}
@@ -203,6 +212,7 @@
 		templateId={data.template.id}
 		templateTitle={data.template.title}
 		loggedIn={!!data.user}
+		peeking={data.peeking}
 	/>
 {/if}
 
@@ -322,7 +332,7 @@
 		</h2>
 	</div>
 	{#if others.length}
-		{#if !data.viewerHasRanked}
+		{#if !data.revealed}
 			<p class="muted blur-note">
 				Blurred until you’ve <a href="/templates/{data.template.id}/rank"
 					>{isBracket
@@ -337,21 +347,21 @@
 			{#each others as list (list.id)}
 				<a
 					class="card list-card"
-					class:hidden-ranking={!data.viewerHasRanked}
+					class:hidden-ranking={!data.revealed}
 					href="/lists/{list.id}"
 				>
 					<div class="list-card-head">
 						<strong>{list.title}</strong>
 						<span class="muted">{list.profiles?.username ?? "someone"}</span>
 					</div>
-					<div class="preview" aria-hidden={!data.viewerHasRanked}>
+					<div class="preview" aria-hidden={!data.revealed}>
 						<RankingPreview
 							{list}
 							items={data.items}
 							bracket={isBracket}
 							blind={isBlind}
 						/>
-						{#if !data.viewerHasRanked}
+						{#if !data.revealed}
 							<span class="peek">Click to peek</span>
 						{/if}
 					</div>
@@ -367,6 +377,19 @@
 </section>
 
 <style>
+	.peek-note {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: 8px 16px;
+		flex-wrap: wrap;
+		margin: 24px 0 0;
+		padding: 10px 14px;
+		border: 1px solid var(--line);
+		border-radius: var(--radius-small);
+		background: var(--surface);
+		font-size: 0.9375rem;
+	}
 	.head {
 		display: flex;
 		justify-content: space-between;
